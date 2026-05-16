@@ -5,24 +5,25 @@ export const getTheme = (mode: PaletteMode) => createTheme({
   palette: {
     mode,
     ...(mode === 'dark' ? {
-      // Dark mode - Modern, professional dark theme
+      // Dark mode - StockSense charcoal theme
       primary: {
-        main: '#3b82f6',      // Modern blue
-        light: '#60a5fa',
-        dark: '#2563eb',
+        main: '#00A39A',
+        light: '#34D5CA',
+        dark: '#00756E',
+        contrastText: '#ffffff',
       },
       secondary: {
-        main: '#8b5cf6',      // Purple accent
-        light: '#a78bfa',
-        dark: '#7c3aed',
+        main: '#5B7CFA',
+        light: '#8EA5FF',
+        dark: '#3F5BD8',
       },
       background: {
-        default: '#0f172a',   // Deep slate
-        paper: '#1e293b',     // Slate card background
+        default: '#101815',
+        paper: '#17231F',
       },
       text: {
-        primary: '#f1f5f9',   // Light text
-        secondary: '#94a3b8', // Muted text
+        primary: '#F3F8F6',
+        secondary: '#9FB5AE',
       },
       error: {
         main: '#ef4444',
@@ -40,26 +41,27 @@ export const getTheme = (mode: PaletteMode) => createTheme({
         main: '#10b981',
         light: '#34d399',
       },
-      divider: '#334155',
+      divider: '#294039',
     } : {
-      // Light mode - White base with dark grey cards
+      // Light mode - clean operational workspace
       primary: {
-        main: '#2563eb',      // Clean modern blue
-        light: '#3b82f6',
-        dark: '#1d4ed8',
+        main: '#007A72',
+        light: '#00A39A',
+        dark: '#005A54',
+        contrastText: '#ffffff',
       },
       secondary: {
-        main: '#7c3aed',      // Modern purple
-        light: '#8b5cf6',
-        dark: '#6d28d9',
+        main: '#3157D5',
+        light: '#5B7CFA',
+        dark: '#233EA2',
       },
       background: {
-        default: '#ffffff',   // Pure white base
-        paper: '#f1f5f9',     // Dark grey cards
+        default: '#F7FAF9',
+        paper: '#FFFFFF',
       },
       text: {
-        primary: '#1e293b',   // Slate dark
-        secondary: '#64748b', // Slate gray
+        primary: '#18251F',
+        secondary: '#657871',
       },
       error: {
         main: '#dc2626',
@@ -77,7 +79,7 @@ export const getTheme = (mode: PaletteMode) => createTheme({
         main: '#059669',
         light: '#10b981',
       },
-      divider: '#e2e8f0',
+      divider: '#DDE7E3',
     }),
   },
   typography: {
@@ -85,22 +87,22 @@ export const getTheme = (mode: PaletteMode) => createTheme({
     fontSize: 14,
     h1: {
       fontWeight: 700,
-      letterSpacing: '-0.02em',
+      letterSpacing: 0,
       fontSize: '2rem',
     },
     h2: {
       fontWeight: 700,
-      letterSpacing: '-0.01em',
+      letterSpacing: 0,
       fontSize: '1.5rem',
     },
     h3: {
       fontWeight: 600,
-      letterSpacing: '-0.01em',
+      letterSpacing: 0,
       fontSize: '1.25rem',
     },
     h4: {
       fontWeight: 600,
-      letterSpacing: '-0.005em',
+      letterSpacing: 0,
       fontSize: '1.125rem',
     },
     h5: {
@@ -113,7 +115,7 @@ export const getTheme = (mode: PaletteMode) => createTheme({
     },
     button: {
       fontWeight: 600,
-      letterSpacing: '0.01em',
+      letterSpacing: 0,
       fontSize: '0.875rem',
     },
     body1: {
@@ -124,7 +126,7 @@ export const getTheme = (mode: PaletteMode) => createTheme({
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 8,
   },
   spacing: 8,
   components: {
@@ -137,13 +139,13 @@ export const getTheme = (mode: PaletteMode) => createTheme({
             height: '8px',
           },
           '&::-webkit-scrollbar-track': {
-            background: mode === 'dark' ? '#1e293b' : '#f1f5f9',
+            background: mode === 'dark' ? '#17231F' : '#F1F6F4',
           },
           '&::-webkit-scrollbar-thumb': {
-            background: mode === 'dark' ? '#475569' : '#cbd5e1',
+            background: mode === 'dark' ? '#47665D' : '#B9C8C3',
             borderRadius: '4px',
             '&:hover': {
-              background: mode === 'dark' ? '#64748b' : '#94a3b8',
+              background: mode === 'dark' ? '#66867D' : '#8FA39C',
             },
           },
         },
@@ -153,7 +155,7 @@ export const getTheme = (mode: PaletteMode) => createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          border: mode === 'dark' ? '1px solid #334155' : '1px solid #d0d7de',
+          border: mode === 'dark' ? '1px solid #294039' : '1px solid #DDE7E3',
           boxShadow: mode === 'dark'
             ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)'
             : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
@@ -162,7 +164,7 @@ export const getTheme = (mode: PaletteMode) => createTheme({
             boxShadow: mode === 'dark'
               ? '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3)'
               : '0 3px 8px 0 rgba(0, 0, 0, 0.1)',
-            borderColor: mode === 'dark' ? '#475569' : '#8c959f',
+            borderColor: mode === 'dark' ? '#3F5E55' : '#B9C8C3',
           },
         },
       },
@@ -180,8 +182,8 @@ export const getTheme = (mode: PaletteMode) => createTheme({
           boxShadow: 'none',
           '&:hover': {
             boxShadow: mode === 'dark'
-              ? '0 4px 12px rgba(59, 130, 246, 0.4)'
-              : '0 4px 12px rgba(37, 99, 235, 0.3)',
+              ? '0 4px 12px rgba(0, 163, 154, 0.35)'
+              : '0 4px 12px rgba(0, 122, 114, 0.25)',
             transform: 'translateY(-1px)',
           },
           '&:active': {
@@ -209,15 +211,15 @@ export const getTheme = (mode: PaletteMode) => createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: mode === 'dark' ? '1px solid #334155' : '1px solid #e2e8f0',
+          borderBottom: mode === 'dark' ? '1px solid #294039' : '1px solid #DDE7E3',
           padding: '16px',
         },
         head: {
           fontWeight: 700,
-          backgroundColor: mode === 'dark' ? '#1e293b' : '#f8fafc',
+          backgroundColor: mode === 'dark' ? '#17231F' : '#F7FAF9',
           fontSize: '0.875rem',
           textTransform: 'uppercase',
-          letterSpacing: '0.05em',
+          letterSpacing: 0,
         },
       },
     },
@@ -255,7 +257,7 @@ export const getTheme = (mode: PaletteMode) => createTheme({
           minHeight: '56px',
           transition: 'all 0.2s ease-in-out',
           '&:hover': {
-            backgroundColor: mode === 'dark' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(37, 99, 235, 0.08)',
+            backgroundColor: mode === 'dark' ? 'rgba(0, 163, 154, 0.10)' : 'rgba(0, 122, 114, 0.08)',
           },
         },
       },

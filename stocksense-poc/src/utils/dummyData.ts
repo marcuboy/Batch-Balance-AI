@@ -89,6 +89,10 @@ export const generateDummyData = (): Part[] => {
       const ov60 = over60 > 0 ? (over60 / qtyPerBox) * 0.001 : 0;
       const ov90 = over90 > 0 ? (over90 / qtyPerBox) * 0.001 : 0;
       const ov120 = over120 > 0 ? (over120 / qtyPerBox) * 0.001 : 0;
+      const uv30 = under30 > 0 ? (under30 / qtyPerBox) * 0.001 : 0;
+      const uv60 = under60 > 0 ? (under60 / qtyPerBox) * 0.001 : 0;
+      const uv90 = under90 > 0 ? (under90 / qtyPerBox) * 0.001 : 0;
+      const uv120 = under120 > 0 ? (under120 / qtyPerBox) * 0.001 : 0;
       
       // Value calculations
       const osVal30 = over30 > 0 ? over30 * price : 0;
@@ -120,6 +124,7 @@ export const generateDummyData = (): Part[] => {
         pkgItem: `PKG-${Math.floor(Math.random() * 8) + 1}`,
         qtyPerBox,
         ov30, ov60, ov90, ov120,
+        uv30, uv60, uv90, uv120,
         price,
         atb: Math.random() > 0.85,
         obs: Math.random() > 0.92,
@@ -174,6 +179,11 @@ export const calculateKPIs = (parts: Part[], horizon: 30 | 60 | 90 | 120 = 30) =
     const volKey = `ov${horizon}` as keyof Part;
     return sum + (p[volKey] as number);
   }, 0);
+
+  const shortageVolume = parts.reduce((sum, p) => {
+    const volKey = `uv${horizon}` as keyof Part;
+    return sum + (p[volKey] as number);
+  }, 0);
   
   return {
     overstockedParts,
@@ -184,7 +194,8 @@ export const calculateKPIs = (parts: Part[], horizon: 30 | 60 | 90 | 120 = 30) =
     understockedParts,
     totalShortageQty,
     criticalShortageParts,
-    shortageValue
+    shortageValue,
+    shortageVolume
   };
 };
 

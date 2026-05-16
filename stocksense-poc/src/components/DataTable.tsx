@@ -1,12 +1,33 @@
-import { useState } from 'react';
-import { useTheme } from '@mui/material';
+import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import {
+  Box,
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  useTheme,
+} from '@mui/material';
+import {
+  ArrowDownward,
+  ArrowUpward,
+  ChevronLeft,
+  ChevronRight,
+  UnfoldMore,
+} from '@mui/icons-material';
 import type { Part } from '../types';
 
-interface Column {
+export interface Column {
   key: string;
   label: string;
   sortable?: boolean;
-  render?: (part: Part) => React.ReactNode;
+  render?: (part: Part) => ReactNode;
+  align?: 'left' | 'right' | 'center';
 }
 
 interface DataTableProps {
@@ -14,20 +35,43 @@ interface DataTableProps {
   columns: Column[];
   defaultSort?: string;
   defaultSortDir?: 'asc' | 'desc';
+  emptyTitle?: string;
+  emptyMessage?: string;
 }
 
-export default function DataTable({ 
-  parts, 
-  columns, 
-  defaultSort = 'part', 
-  defaultSortDir = 'asc' 
+const rowsPerPage = 50;
+
+export default function DataTable({
+  parts,
+  columns,
+  defaultSort = 'part',
+  defaultSortDir = 'asc',
+  emptyTitle = 'No rows found',
+  emptyMessage = 'Adjust filters or load another data set to see matching parts.',
 }: DataTableProps) {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
   const [sortKey, setSortKey] = useState(defaultSort);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultSortDir);
   const [page, setPage] = useState(0);
-  const rowsPerPage = 50;
+
+  const sortedParts = useMemo(() => {
+    return [...parts].sort((a, b) => {
+      const aVal = (a as unknown as Record<string, unknown>)[sortKey];
+      const bVal = (b as unknown as Record<string, unknown>)[sortKey];
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aStr = String(aVal || '');
+      const bStr = String(bVal || '');
+      return sortDir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+  }, [parts, sortDir, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedParts.length / rowsPerPage));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginatedParts = sortedParts.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -39,156 +83,164 @@ export default function DataTable({
     setPage(0);
   };
 
-  const sortedParts = [...parts].sort((a, b) => {
-    const aVal = (a as unknown as Record<string, unknown>)[sortKey];
-    const bVal = (b as unknown as Record<string, unknown>)[sortKey];
-    
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+  const SortIcon = ({ columnKey, sortable }: { columnKey: string; sortable: boolean }) => {
+    if (!sortable) return null;
+    if (sortKey !== columnKey) {
+      return <UnfoldMore sx={{ fontSize: 16, color: 'text.disabled' }} />;
     }
-    
-    const aStr = String(aVal || '');
-    const bStr = String(bVal || '');
-    return sortDir === 'asc' 
-      ? aStr.localeCompare(bStr)
-      : bStr.localeCompare(aStr);
-  });
+    return sortDir === 'asc' ? (
+      <ArrowUpward sx={{ fontSize: 14, color: 'primary.main' }} />
+    ) : (
+      <ArrowDownward sx={{ fontSize: 14, color: 'primary.main' }} />
+    );
+  };
 
-  const paginatedParts = sortedParts.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-  const totalPages = Math.ceil(sortedParts.length / rowsPerPage);
+  if (sortedParts.length === 0) {
+    return (
+      <Paper
+        variant="outlined"
+        sx={{
+          p: { xs: 4, md: 6 },
+          textAlign: 'center',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+          {emptyTitle}
+        </Typography>
+        <Typography color="text.secondary">{emptyMessage}</Typography>
+      </Paper>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{
-        overflowX: 'auto',
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: '8px',
-        backgroundColor: theme.palette.background.paper
-      }}>
-        <table style={{ 
-          width: '100%', 
-          borderCollapse: 'collapse',
-          fontSize: '14px'
-        }}>
-          <thead>
-            <tr style={{ borderBottom: `2px solid ${theme.palette.divider}` }}>
-              {columns.map(col => (
-                <th 
-                  key={col.key}
-                  onClick={() => col.sortable !== false && handleSort(col.key)}
-                  style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    color: theme.palette.text.primary,
-                    fontWeight: 600,
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    cursor: col.sortable !== false ? 'pointer' : 'default',
-                    userSelect: 'none',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
-                  }}
-                >
-                  {col.label}
-                  {col.sortable !== false && sortKey === col.key && (
-                    <span style={{ marginLeft: '4px' }}>
-                      {sortDir === 'asc' ? '↑' : '↓'}
-                    </span>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedParts.map((part, idx) => (
-              <tr 
-                key={`${part.site}-${part.part}-${idx}`}
-                style={{
-                  borderBottom: `1px solid ${theme.palette.divider}`,
-                  transition: 'background-color 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                {columns.map(col => (
-                  <td 
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{
+          overflowX: 'auto',
+          borderRadius: 2,
+          '& table': {
+            minWidth: 980,
+          },
+        }}
+      >
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              {columns.map((col) => {
+                const sortable = col.sortable !== false;
+                return (
+                  <TableCell
                     key={col.key}
-                    style={{
-                      padding: '12px 16px',
-                      color: theme.palette.text.primary,
-                      whiteSpace: 'nowrap'
+                    align={col.align || 'left'}
+                    onClick={() => sortable && handleSort(col.key)}
+                    sx={{
+                      py: 1.75,
+                      px: 2,
+                      bgcolor: theme.palette.mode === 'dark' ? 'background.paper' : '#F1F6F4',
+                      color: 'text.secondary',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      letterSpacing: 0,
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      cursor: sortable ? 'pointer' : 'default',
+                      userSelect: 'none',
                     }}
                   >
-                    {col.render ? col.render(part) : String((part as unknown as Record<string, unknown>)[col.key] || '')}
-                  </td>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start',
+                        width: '100%',
+                      }}
+                    >
+                      {col.label}
+                      <SortIcon columnKey={col.key} sortable={sortable} />
+                    </Box>
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {paginatedParts.map((part, idx) => (
+              <TableRow
+                key={`${part.site}-${part.part}-${safePage}-${idx}`}
+                hover
+                sx={{
+                  '&:last-child td': { borderBottom: 0 },
+                }}
+              >
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    align={col.align || 'left'}
+                    sx={{
+                      py: 1.6,
+                      px: 2,
+                      color: 'text.primary',
+                      whiteSpace: 'nowrap',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {col.render
+                      ? col.render(part)
+                      : String((part as unknown as Record<string, unknown>)[col.key] || '')}
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      {/* Pagination */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px 16px',
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: '8px',
-        border: `1px solid ${theme.palette.divider}`
-      }}>
-        <div style={{ color: theme.palette.text.primary, fontSize: '14px' }}>
-          Showing {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, sortedParts.length)} of {sortedParts.length}
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            disabled={page === 0}
-            onClick={() => setPage(page - 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: page === 0 ? theme.palette.action.disabledBackground : theme.palette.primary.main,
-              color: page === 0 ? theme.palette.action.disabled : theme.palette.primary.contrastText,
-              border: 'none',
-              borderRadius: '4px',
-              cursor: page === 0 ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: 500
-            }}
+      <Paper
+        variant="outlined"
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          display: 'flex',
+          gap: 2,
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: 'space-between',
+          flexDirection: { xs: 'column', sm: 'row' },
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Typography color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+          Showing {safePage * rowsPerPage + 1}-{Math.min((safePage + 1) * rowsPerPage, sortedParts.length)} of{' '}
+          {sortedParts.length}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+          <Button
+            disabled={safePage === 0}
+            onClick={() => setPage(safePage - 1)}
+            variant="outlined"
+            size="small"
+            startIcon={<ChevronLeft />}
           >
             Previous
-          </button>
-          <div style={{
-            color: theme.palette.text.primary,
-            fontSize: '14px',
-            padding: '0 8px'
-          }}>
-            Page {page + 1} of {totalPages}
-          </div>
-          <button
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage(page + 1)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: page >= totalPages - 1 ? theme.palette.action.disabledBackground : theme.palette.primary.main,
-              color: page >= totalPages - 1 ? theme.palette.action.disabled : theme.palette.primary.contrastText,
-              border: 'none',
-              borderRadius: '4px',
-              cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: 500
-            }}
+          </Button>
+          <Typography sx={{ color: 'text.secondary', fontSize: '0.875rem', minWidth: 82, textAlign: 'center' }}>
+            {safePage + 1} / {totalPages}
+          </Typography>
+          <Button
+            disabled={safePage >= totalPages - 1}
+            onClick={() => setPage(safePage + 1)}
+            variant="contained"
+            size="small"
+            endIcon={<ChevronRight />}
           >
             Next
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
   );
 }
 

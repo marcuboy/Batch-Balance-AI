@@ -7,6 +7,7 @@
  * @returns Formatted string (e.g., "1.2K", "2.5M")
  */
 export const fmt = (n: number): string => {
+  if (n == null || isNaN(n)) return '—';
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
   return n.toLocaleString();
@@ -30,10 +31,12 @@ export const fmtGBP = (v: number | null | undefined): string => {
  * @returns Formatted string (e.g., "1.23 m³", "1.2K m³")
  */
 export const fmtVol = (v: number | null | undefined): string => {
-  if (v == null) return '—';
-  if (v >= 1000) return (v / 1000).toFixed(1) + 'K';
-  if (v >= 1) return v.toFixed(2);
-  return v.toFixed(4);
+  if (v == null || isNaN(v)) return '—';
+  if (v === 0) return '0 m³';
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}K m³`;
+  if (v >= 10) return `${v.toFixed(1)} m³`;
+  if (v >= 1) return `${v.toFixed(2)} m³`;
+  return `${v.toFixed(3)} m³`;
 };
 
 /**

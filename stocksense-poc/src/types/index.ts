@@ -6,6 +6,7 @@ export interface Part {
   vendor: string;
   vname: string;
   analyst: string;
+  imageUrl?: string;
   soh: number;
   packGroup: string;
   isTLS: boolean;
@@ -29,6 +30,10 @@ export interface Part {
   ov60: number;
   ov90: number;
   ov120: number;
+  uv30: number;
+  uv60: number;
+  uv90: number;
+  uv120: number;
   price: number;
   atb: boolean;
   obs: boolean;
@@ -88,6 +93,7 @@ export interface KPIData {
   totalShortageQty: number;
   criticalShortageParts: number;
   shortageValue: number;
+  shortageVolume: number;
 }
 
 // Made with Bob

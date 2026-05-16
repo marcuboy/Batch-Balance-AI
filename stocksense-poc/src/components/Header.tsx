@@ -13,7 +13,9 @@ import {
   Download, 
   Save, 
   LightMode, 
-  DarkMode 
+  DarkMode,
+  Inventory2,
+  UploadFile,
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import { exportToExcel } from '../utils/excelExport';
@@ -22,22 +24,25 @@ interface HeaderProps {
   activeTab?: string;
   themeMode?: 'light' | 'dark';
   onToggleTheme?: () => void;
+  onReset?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
   activeTab = 'overview',
   themeMode = 'dark',
-  onToggleTheme
+  onToggleTheme,
+  onReset,
 }) => {
-  const { parts, mrpDate, filters } = useData();
+  const { parts, filteredParts, mrpDate, filters, resetData } = useData();
   const [exporting, setExporting] = useState(false);
+  const hasData = parts.length > 0;
 
   const handleExport = async () => {
     if (parts.length === 0) return;
     
     setExporting(true);
     try {
-      exportToExcel(parts, filters.horizon, mrpDate, activeTab);
+      exportToExcel(filteredParts, filters.horizon, mrpDate, activeTab);
     } catch (error) {
       console.error('Export failed:', error);
       alert('Export failed. Please try again.');
@@ -47,6 +52,8 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSnapshot = () => {
+    if (!hasData) return;
+
     // Create a snapshot of the current state
     const snapshot = {
       parts,
@@ -66,9 +73,11 @@ const Header: React.FC<HeaderProps> = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
-    // Also trigger Excel export
-    setTimeout(() => handleExport(), 400);
+  };
+
+  const handleReset = () => {
+    resetData();
+    onReset?.();
   };
 
   return (
@@ -92,7 +101,22 @@ const Header: React.FC<HeaderProps> = ({
           minHeight: { xs: '64px', sm: '70px' },
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, sm: 1.75 }, minWidth: 0 }}>
+          <Box
+            sx={{
+              width: { xs: 38, sm: 42 },
+              height: { xs: 38, sm: 42 },
+              borderRadius: 2,
+              display: { xs: 'none', sm: 'grid' },
+              placeItems: 'center',
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              boxShadow: (theme) => `0 10px 24px ${theme.palette.mode === 'dark' ? 'rgba(0, 151, 136, 0.28)' : 'rgba(0, 104, 95, 0.22)'}`,
+            }}
+            aria-hidden="true"
+          >
+            <Inventory2 fontSize="small" />
+          </Box>
           <Box>
             <Typography
               variant="h4"
@@ -102,8 +126,9 @@ const Header: React.FC<HeaderProps> = ({
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
-                letterSpacing: '0.02em',
+                fontSize: { xs: '1.45rem', sm: '1.75rem', md: '2rem' },
+                letterSpacing: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               StockSense
@@ -113,9 +138,11 @@ const Header: React.FC<HeaderProps> = ({
               sx={{
                 color: 'text.secondary',
                 fontSize: { xs: '0.65rem', sm: '0.7rem' },
-                letterSpacing: '0.08em',
+                letterSpacing: 0,
                 textTransform: 'uppercase',
                 fontWeight: 600,
+                display: 'block',
+                maxWidth: { xs: 150, sm: 'none' },
               }}
             >
               Inventory Intelligence Platform
@@ -141,6 +168,7 @@ const Header: React.FC<HeaderProps> = ({
         <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, alignItems: 'center' }}>
           <Tooltip title={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} mode`}>
             <IconButton
+              aria-label={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} mode`}
               onClick={onToggleTheme}
               sx={{
                 color: 'text.primary',
@@ -164,7 +192,7 @@ const Header: React.FC<HeaderProps> = ({
             variant="outlined"
             startIcon={<Download />}
             onClick={handleExport}
-            disabled={!mrpDate || exporting}
+            disabled={!hasData || exporting}
             sx={{ 
               borderColor: 'primary.main', 
               color: 'primary.main',
@@ -183,7 +211,7 @@ const Header: React.FC<HeaderProps> = ({
             variant="contained"
             startIcon={<Save />}
             onClick={handleSnapshot}
-            disabled={!mrpDate}
+            disabled={!hasData}
             sx={{ 
               bgcolor: 'primary.main',
               display: { xs: 'none', sm: 'flex' },
@@ -195,32 +223,75 @@ const Header: React.FC<HeaderProps> = ({
             Snapshot
           </Button>
 
-          {/* Mobile: Icon buttons only */}
-          <IconButton
-            onClick={handleExport}
-            disabled={!mrpDate || exporting}
-            sx={{
-              display: { xs: 'flex', md: 'none' },
-              color: 'primary.main',
-              bgcolor: 'background.default',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Download />
-          </IconButton>
+          {hasData && (
+            <Button
+              variant="outlined"
+              startIcon={<UploadFile />}
+              onClick={handleReset}
+              sx={{
+                display: { xs: 'none', lg: 'flex' },
+                borderColor: 'divider',
+                color: 'text.primary',
+              }}
+            >
+              New files
+            </Button>
+          )}
 
-          <IconButton
-            onClick={handleSnapshot}
-            disabled={!mrpDate}
-            sx={{
-              display: { xs: 'flex', sm: 'none' },
-              bgcolor: 'primary.main',
-              color: 'white',
-            }}
-          >
-            <Save />
-          </IconButton>
+          {/* Mobile: Icon buttons only */}
+          <Tooltip title="Export">
+            <span>
+              <IconButton
+                aria-label="Export"
+                onClick={handleExport}
+                disabled={!hasData || exporting}
+                sx={{
+                  display: { xs: 'flex', md: 'none' },
+                  color: 'primary.main',
+                  bgcolor: 'background.default',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Download />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          <Tooltip title="Save snapshot">
+            <span>
+              <IconButton
+                aria-label="Save snapshot"
+                onClick={handleSnapshot}
+                disabled={!hasData}
+                sx={{
+                  display: { xs: 'flex', sm: 'none' },
+                  bgcolor: hasData ? 'primary.main' : 'action.disabledBackground',
+                  color: hasData ? 'white' : 'action.disabled',
+                }}
+              >
+                <Save />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          {hasData && (
+            <Tooltip title="Load new files">
+              <IconButton
+                aria-label="Load new files"
+                onClick={handleReset}
+                sx={{
+                  display: { xs: 'flex', lg: 'none' },
+                  color: 'text.primary',
+                  bgcolor: 'background.default',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <UploadFile />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </Toolbar>
     </AppBar>

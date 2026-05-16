@@ -1,51 +1,67 @@
 import {
   Box,
   Button,
-  TextField,
-  Select,
-  MenuItem,
+  Chip,
   FormControl,
   InputLabel,
-  Chip,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
 } from '@mui/material';
-import { FilterList, Clear } from '@mui/icons-material';
+import { Clear, FilterList } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
+import { defaultFilters } from '../utils/defaultFilters';
 
 interface FilterDrawerProps {
   isOpen: boolean;
   onToggle: () => void;
 }
 
-export function FilterButton({ onToggle }: FilterDrawerProps) {
-  const { filters } = useData();
+const booleanValue = (value: boolean | null) => {
+  if (value === null) return 'all';
+  return value ? 'true' : 'false';
+};
 
-  // Count active filters
-  const activeFilterCount = [
-    filters.site !== 'both',
-    filters.vendor !== 'all',
-    filters.risk !== 'all',
-    filters.shortageRisk !== 'all',
-    filters.analyst !== 'all',
+const parseBooleanValue = (value: string) => {
+  if (value === 'all') return null;
+  return value === 'true';
+};
+
+const getActiveFilterCount = (filters: ReturnType<typeof useData>['filters']) =>
+  [
+    filters.site !== defaultFilters.site,
+    filters.horizon !== defaultFilters.horizon,
+    filters.vendor !== defaultFilters.vendor,
+    filters.risk !== defaultFilters.risk,
+    filters.shortageRisk !== defaultFilters.shortageRisk,
+    filters.analyst !== defaultFilters.analyst,
     filters.partSearch,
-    filters.atb !== null,
-    filters.obs !== null,
-    filters.tls !== null,
-    filters.packGroup !== 'all',
+    filters.atb !== defaultFilters.atb,
+    filters.obs !== defaultFilters.obs,
+    filters.tls !== defaultFilters.tls,
+    filters.packGroup !== defaultFilters.packGroup,
+    filters.sortBy !== defaultFilters.sortBy,
   ].filter(Boolean).length;
+
+export function FilterButton({ isOpen, onToggle }: FilterDrawerProps) {
+  const { filters } = useData();
+  const activeFilterCount = getActiveFilterCount(filters);
 
   return (
     <Button
+      aria-expanded={isOpen}
       onClick={onToggle}
       startIcon={<FilterList />}
       variant={activeFilterCount > 0 ? 'contained' : 'outlined'}
       size="small"
       sx={{
-        textTransform: 'none',
-        fontWeight: 600,
+        fontWeight: 700,
         fontSize: '0.875rem',
-        px: 2,
-        py: 0.75,
+        px: { xs: 1.5, sm: 2 },
+        py: 0.8,
         minWidth: 'auto',
+        whiteSpace: 'nowrap',
       }}
     >
       Filters
@@ -55,9 +71,10 @@ export function FilterButton({ onToggle }: FilterDrawerProps) {
           size="small"
           sx={{
             ml: 1,
-            height: '18px',
+            height: 18,
+            minWidth: 18,
             fontSize: '0.7rem',
-            fontWeight: 700,
+            fontWeight: 800,
             bgcolor: 'background.paper',
             color: 'primary.main',
           }}
@@ -70,48 +87,42 @@ export function FilterButton({ onToggle }: FilterDrawerProps) {
 export default function FilterDrawer({ isOpen }: { isOpen: boolean }) {
   const { parts, filters, setFilters } = useData();
 
-  // Get unique values for dropdowns
-  const vendors = Array.from(new Set(parts.map(p => p.vname))).sort();
-  const analysts = Array.from(new Set(parts.map(p => p.analyst).filter(Boolean))).sort();
-
-  // Count active filters
-  const activeFilterCount = [
-    filters.site !== 'both',
-    filters.vendor !== 'all',
-    filters.risk !== 'all',
-    filters.shortageRisk !== 'all',
-    filters.analyst !== 'all',
-    filters.partSearch,
-    filters.atb !== null,
-    filters.obs !== null,
-    filters.tls !== null,
-    filters.packGroup !== 'all',
-  ].filter(Boolean).length;
+  const vendors = Array.from(
+    new Map(parts.map((p) => [p.vendor, p.vname || p.vendor])).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]));
+  const analysts = Array.from(new Set(parts.map((p) => p.analyst).filter(Boolean))).sort();
+  const packGroups = Array.from(new Set(parts.map((p) => p.packGroup).filter(Boolean))).sort();
+  const activeFilterCount = getActiveFilterCount(filters);
 
   const handleClearFilters = () => {
-    setFilters({
-      ...filters,
-      site: 'both',
-      vendor: 'all',
-      risk: 'all',
-      shortageRisk: 'all',
-      analyst: 'all',
-      partSearch: '',
-      atb: null,
-      obs: null,
-      tls: null,
-      packGroup: 'all',
-      sortBy: 'qty',
-    });
+    setFilters(defaultFilters);
   };
+
+  const selectSx = (active: boolean) => ({
+    bgcolor: active ? 'primary.main' : 'background.default',
+    color: active ? 'primary.contrastText' : 'text.primary',
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: active ? 'primary.main' : 'divider',
+      borderWidth: '1px',
+    },
+    '&:hover .MuiOutlinedInput-notchedOutline': {
+      borderColor: 'primary.main',
+    },
+    '& .MuiSvgIcon-root': {
+      color: active ? 'primary.contrastText' : 'text.secondary',
+    },
+  });
 
   return (
     <Box
+      aria-hidden={!isOpen}
       sx={{
-        maxHeight: isOpen ? '200px' : '0',
-        overflow: 'hidden',
-        transition: 'max-height 0.3s ease, opacity 0.2s',
+        maxHeight: isOpen ? { xs: '70vh', md: '300px' } : '0px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        transition: 'max-height 0.28s ease, opacity 0.2s ease',
         opacity: isOpen ? 1 : 0,
+        pointerEvents: isOpen ? 'auto' : 'none',
         bgcolor: 'background.paper',
         borderBottom: isOpen ? 1 : 0,
         borderColor: 'divider',
@@ -119,193 +130,221 @@ export default function FilterDrawer({ isOpen }: { isOpen: boolean }) {
     >
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: { xs: 1.5, sm: 2 },
-          p: { xs: 2, sm: 2, md: 2.5 },
+          p: { xs: 2, md: 2.5 },
           px: { xs: 2, sm: 3, md: 4 },
-          flexWrap: 'wrap',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'repeat(2, minmax(0, 1fr))',
+            md: 'repeat(6, minmax(130px, 1fr))',
+            xl: 'repeat(10, minmax(120px, 1fr))',
+          },
+          gap: { xs: 1.25, md: 1.5 },
+          alignItems: 'center',
         }}
       >
-        {/* Site Filter */}
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small">
           <InputLabel>Site</InputLabel>
           <Select
             value={filters.site}
             label="Site"
             onChange={(e) => setFilters({ ...filters, site: e.target.value as 'both' | 'WBN' | 'STA' })}
-            sx={{
-              bgcolor: filters.site !== 'both' ? 'primary.main' : 'background.default',
-              color: filters.site !== 'both' ? 'white' : 'text.primary',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: filters.site !== 'both' ? 'primary.main' : 'divider',
-                borderWidth: '2px',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-              '& .MuiSvgIcon-root': {
-                color: filters.site !== 'both' ? 'white' : 'text.primary',
-              },
-            }}
+            sx={selectSx(filters.site !== defaultFilters.site)}
           >
-            <MenuItem value="both">🌐 Both Sites</MenuItem>
+            <MenuItem value="both">Both sites</MenuItem>
             <MenuItem value="WBN">WBN</MenuItem>
             <MenuItem value="STA">STA</MenuItem>
           </Select>
         </FormControl>
 
-        {/* Horizon Filter */}
-        <FormControl size="small" sx={{ minWidth: 110 }}>
+        <FormControl size="small">
           <InputLabel>Horizon</InputLabel>
           <Select
             value={filters.horizon}
             label="Horizon"
             onChange={(e) => setFilters({ ...filters, horizon: Number(e.target.value) as 30 | 60 | 90 | 120 })}
-            sx={{
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderWidth: '2px',
-              },
-            }}
+            sx={selectSx(filters.horizon !== defaultFilters.horizon)}
           >
-            <MenuItem value={30}>30 Days</MenuItem>
-            <MenuItem value={60}>60 Days</MenuItem>
-            <MenuItem value={90}>90 Days</MenuItem>
-            <MenuItem value={120}>120 Days</MenuItem>
+            <MenuItem value={30}>30 days</MenuItem>
+            <MenuItem value={60}>60 days</MenuItem>
+            <MenuItem value={90}>90 days</MenuItem>
+            <MenuItem value={120}>120 days</MenuItem>
           </Select>
         </FormControl>
 
-        {/* Vendor Filter */}
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+        <FormControl size="small">
           <InputLabel>Vendor</InputLabel>
           <Select
             value={filters.vendor}
             label="Vendor"
             onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
-            sx={{
-              bgcolor: filters.vendor !== 'all' ? 'primary.main' : 'background.default',
-              color: filters.vendor !== 'all' ? 'white' : 'text.primary',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: filters.vendor !== 'all' ? 'primary.main' : 'divider',
-                borderWidth: '2px',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-              '& .MuiSvgIcon-root': {
-                color: filters.vendor !== 'all' ? 'white' : 'text.primary',
-              },
-            }}
+            sx={selectSx(filters.vendor !== defaultFilters.vendor)}
           >
-            <MenuItem value="all">All Vendors</MenuItem>
-            {vendors.map(v => (
-              <MenuItem key={v} value={v}>{v}</MenuItem>
+            <MenuItem value="all">All vendors</MenuItem>
+            {vendors.map(([code, name]) => (
+              <MenuItem key={code} value={code}>
+                {name}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
 
-        {/* Risk Filter */}
-        <FormControl size="small" sx={{ minWidth: 110 }}>
-          <InputLabel>Risk</InputLabel>
+        <FormControl size="small">
+          <InputLabel>Over risk</InputLabel>
           <Select
             value={filters.risk}
-            label="Risk"
+            label="Over risk"
             onChange={(e) => setFilters({ ...filters, risk: e.target.value })}
-            sx={{
-              bgcolor: filters.risk !== 'all' ? 'primary.main' : 'background.default',
-              color: filters.risk !== 'all' ? 'white' : 'text.primary',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: filters.risk !== 'all' ? 'primary.main' : 'divider',
-                borderWidth: '2px',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-              '& .MuiSvgIcon-root': {
-                color: filters.risk !== 'all' ? 'white' : 'text.primary',
-              },
-            }}
+            sx={selectSx(filters.risk !== defaultFilters.risk)}
           >
-            <MenuItem value="all">All Risks</MenuItem>
+            <MenuItem value="all">All risks</MenuItem>
             <MenuItem value="Critical">Critical</MenuItem>
             <MenuItem value="High">High</MenuItem>
             <MenuItem value="Medium">Medium</MenuItem>
             <MenuItem value="Low">Low</MenuItem>
+            <MenuItem value="None">None</MenuItem>
           </Select>
         </FormControl>
 
-        {/* Analyst Filter */}
-        {analysts.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <InputLabel>Analyst</InputLabel>
-            <Select
-              value={filters.analyst}
-              label="Analyst"
-              onChange={(e) => setFilters({ ...filters, analyst: e.target.value })}
-              sx={{
-                bgcolor: filters.analyst !== 'all' ? 'primary.main' : 'background.default',
-                color: filters.analyst !== 'all' ? 'white' : 'text.primary',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: filters.analyst !== 'all' ? 'primary.main' : 'divider',
-                  borderWidth: '2px',
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'primary.main',
-                },
-                '& .MuiSvgIcon-root': {
-                  color: filters.analyst !== 'all' ? 'white' : 'text.primary',
-                },
-              }}
-            >
-              <MenuItem value="all">All Analysts</MenuItem>
-              {analysts.map(a => (
-                <MenuItem key={a} value={a}>{a}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
+        <FormControl size="small">
+          <InputLabel>Short risk</InputLabel>
+          <Select
+            value={filters.shortageRisk}
+            label="Short risk"
+            onChange={(e) => setFilters({ ...filters, shortageRisk: e.target.value })}
+            sx={selectSx(filters.shortageRisk !== defaultFilters.shortageRisk)}
+          >
+            <MenuItem value="all">All risks</MenuItem>
+            <MenuItem value="Critical">Critical</MenuItem>
+            <MenuItem value="High">High</MenuItem>
+            <MenuItem value="Medium">Medium</MenuItem>
+            <MenuItem value="Low">Low</MenuItem>
+            <MenuItem value="None">None</MenuItem>
+          </Select>
+        </FormControl>
 
-        {/* Part Search */}
+        <FormControl size="small">
+          <InputLabel>Analyst</InputLabel>
+          <Select
+            value={filters.analyst}
+            label="Analyst"
+            onChange={(e) => setFilters({ ...filters, analyst: e.target.value })}
+            sx={selectSx(filters.analyst !== defaultFilters.analyst)}
+          >
+            <MenuItem value="all">All analysts</MenuItem>
+            {analysts.map((analyst) => (
+              <MenuItem key={analyst} value={analyst}>
+                {analyst}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
         <TextField
           size="small"
-          placeholder="Search part..."
+          placeholder="Search part, vendor, site..."
           value={filters.partSearch}
           onChange={(e) => setFilters({ ...filters, partSearch: e.target.value })}
           sx={{
-            minWidth: 130,
+            gridColumn: { xs: '1 / -1', md: 'span 2' },
             '& .MuiOutlinedInput-root': {
               bgcolor: filters.partSearch ? 'primary.main' : 'background.default',
-              color: filters.partSearch ? 'white' : 'text.primary',
+              color: filters.partSearch ? 'primary.contrastText' : 'text.primary',
               '& fieldset': {
                 borderColor: filters.partSearch ? 'primary.main' : 'divider',
-                borderWidth: '2px',
-              },
-              '&:hover fieldset': {
-                borderColor: 'primary.main',
               },
               '& input::placeholder': {
-                color: filters.partSearch ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary',
+                color: filters.partSearch ? 'rgba(255, 255, 255, 0.75)' : 'text.secondary',
                 opacity: 1,
               },
             },
           }}
         />
 
-        {/* Filter Actions */}
-        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-          {activeFilterCount > 0 && (
-            <Box
-              component="span"
-              sx={{
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                fontWeight: 600,
-                display: { xs: 'none', sm: 'inline' },
-              }}
-            >
-              {activeFilterCount} active
-            </Box>
-          )}
+        <FormControl size="small">
+          <InputLabel>Pack group</InputLabel>
+          <Select
+            value={filters.packGroup}
+            label="Pack group"
+            onChange={(e) => setFilters({ ...filters, packGroup: e.target.value })}
+            sx={selectSx(filters.packGroup !== defaultFilters.packGroup)}
+          >
+            <MenuItem value="all">All groups</MenuItem>
+            {packGroups.map((group) => (
+              <MenuItem key={group} value={group}>
+                {group}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small">
+          <InputLabel>ATB</InputLabel>
+          <Select
+            value={booleanValue(filters.atb)}
+            label="ATB"
+            onChange={(e) => setFilters({ ...filters, atb: parseBooleanValue(e.target.value) })}
+            sx={selectSx(filters.atb !== defaultFilters.atb)}
+          >
+            <MenuItem value="all">Any ATB</MenuItem>
+            <MenuItem value="true">ATB only</MenuItem>
+            <MenuItem value="false">No ATB</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small">
+          <InputLabel>Obsolete</InputLabel>
+          <Select
+            value={booleanValue(filters.obs)}
+            label="Obsolete"
+            onChange={(e) => setFilters({ ...filters, obs: parseBooleanValue(e.target.value) })}
+            sx={selectSx(filters.obs !== defaultFilters.obs)}
+          >
+            <MenuItem value="all">Any status</MenuItem>
+            <MenuItem value="true">Obsolete only</MenuItem>
+            <MenuItem value="false">Active only</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small">
+          <InputLabel>TLS</InputLabel>
+          <Select
+            value={booleanValue(filters.tls)}
+            label="TLS"
+            onChange={(e) => setFilters({ ...filters, tls: parseBooleanValue(e.target.value) })}
+            sx={selectSx(filters.tls !== defaultFilters.tls)}
+          >
+            <MenuItem value="all">Any TLS</MenuItem>
+            <MenuItem value="true">TLS only</MenuItem>
+            <MenuItem value="false">Non-TLS</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small">
+          <InputLabel>Sort</InputLabel>
+          <Select
+            value={filters.sortBy}
+            label="Sort"
+            onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'qty' | 'volume' | 'value' })}
+            sx={selectSx(filters.sortBy !== defaultFilters.sortBy)}
+          >
+            <MenuItem value="qty">Quantity</MenuItem>
+            <MenuItem value="volume">Volume</MenuItem>
+            <MenuItem value="value">Value</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Box
+          sx={{
+            gridColumn: { xs: '1 / -1', md: 'span 2' },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: { xs: 'space-between', md: 'flex-end' },
+            gap: 1,
+          }}
+        >
+          <Typography color="text.secondary" sx={{ fontSize: '0.8rem', fontWeight: 700 }}>
+            {activeFilterCount === 0 ? 'No active filters' : `${activeFilterCount} active`}
+          </Typography>
           <Button
             onClick={handleClearFilters}
             disabled={activeFilterCount === 0}
@@ -313,14 +352,6 @@ export default function FilterDrawer({ isOpen }: { isOpen: boolean }) {
             variant="outlined"
             size="small"
             color="error"
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              opacity: activeFilterCount > 0 ? 1 : 0.5,
-              px: 1.5,
-              py: 0.5,
-            }}
           >
             Clear
           </Button>

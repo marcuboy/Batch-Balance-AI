@@ -1,114 +1,122 @@
 import { useMemo } from 'react';
+import { Box, Paper, Typography } from '@mui/material';
+import { Inventory, Inventory2 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import DataTable from './DataTable';
+import type { Column } from './DataTable';
 import { columnRenderers } from '../utils/columnRenderers';
 import { fmt, fmtGBP, fmtVol } from '../utils/formatters';
+import type { Part } from '../types';
 
 export default function AllPartsTab() {
   const { filteredParts, filters } = useData();
 
-  const columns = useMemo(() => {
-    const horizonKey = `over${filters.horizon}` as keyof typeof filteredParts[0];
-    const underKey = `under${filters.horizon}` as keyof typeof filteredParts[0];
-    const volKey = `ov${filters.horizon}` as keyof typeof filteredParts[0];
-    const valKey = `osVal${filters.horizon}` as keyof typeof filteredParts[0];
+  const columns = useMemo<Column[]>(() => {
+    const horizonKey = `over${filters.horizon}` as keyof Part;
+    const underKey = `under${filters.horizon}` as keyof Part;
+    const volKey = `ov${filters.horizon}` as keyof Part;
+    const valKey = `osVal${filters.horizon}` as keyof Part;
+    const demandKey = `d${filters.horizon}` as keyof Part;
 
     return [
-      { key: 'part', label: 'Part Number' },
+      { key: 'part', label: 'Part number' },
       { key: 'site', label: 'Site' },
       { key: 'vendor', label: 'Vendor' },
-      { key: 'vname', label: 'Vendor Name' },
+      { key: 'vname', label: 'Vendor name' },
       { key: 'analyst', label: 'Analyst' },
-      { key: 'soh', label: 'Stock on Hand', render: (p) => fmt(p.soh) },
-      { 
-        key: `d${filters.horizon}`, 
-        label: `${filters.horizon}d Demand`, 
-        render: (p) => fmt((p as unknown as Record<string, number>)[`d${filters.horizon}`])
+      { key: 'soh', label: 'Stock on hand', align: 'right', render: (p) => fmt(p.soh) },
+      {
+        key: String(demandKey),
+        label: `${filters.horizon}d demand`,
+        align: 'right',
+        render: (p) => fmt(p[demandKey] as number),
       },
-      { 
-        key: horizonKey, 
-        label: 'Over/Under', 
+      {
+        key: String(horizonKey),
+        label: 'Over / under',
+        align: 'right',
         render: (p) => {
-          const over = (p as unknown as Record<string, number>)[horizonKey];
-          const under = (p as unknown as Record<string, number>)[underKey];
+          const over = p[horizonKey] as number;
+          const under = p[underKey] as number;
           if (over > 0) {
-            return <span style={{ color: '#FF6B6B', fontWeight: 600 }}>+{fmt(over)}</span>;
-          } else if (under > 0) {
-            return <span style={{ color: '#4ECDC4', fontWeight: 600 }}>-{fmt(under)}</span>;
+            return (
+              <Box component="span" sx={{ color: 'error.main', fontWeight: 800 }}>
+                +{fmt(over)}
+              </Box>
+            );
           }
-          return <span style={{ color: '#95E1D3' }}>0</span>;
-        }
+          if (under > 0) {
+            return (
+              <Box component="span" sx={{ color: 'info.main', fontWeight: 800 }}>
+                -{fmt(under)}
+              </Box>
+            );
+          }
+          return (
+            <Box component="span" sx={{ color: 'success.main', fontWeight: 800 }}>
+              Balanced
+            </Box>
+          );
+        },
       },
-      { key: 'risk', label: 'Overstock Risk', render: columnRenderers.risk, sortable: false },
-      { key: 'shortageRisk', label: 'Shortage Risk', render: columnRenderers.shortageRisk, sortable: false },
-      { 
-        key: volKey, 
-        label: 'Volume (m³)', 
+      { key: 'risk', label: 'Overstock risk', render: columnRenderers.risk, sortable: false },
+      { key: 'shortageRisk', label: 'Shortage risk', render: columnRenderers.shortageRisk, sortable: false },
+      {
+        key: String(volKey),
+        label: 'Volume',
+        align: 'right',
         render: (p) => {
-          const vol = (p as unknown as Record<string, number>)[volKey];
-          return vol > 0 ? fmtVol(vol) : '-';
-        }
+          const volume = p[volKey] as number;
+          return volume > 0 ? fmtVol(volume) : '—';
+        },
       },
-      { 
-        key: valKey, 
-        label: 'Value (GBP)', 
+      {
+        key: String(valKey),
+        label: 'Value',
+        align: 'right',
         render: (p) => {
-          const val = (p as unknown as Record<string, number>)[valKey];
-          return val > 0 ? fmtGBP(val) : '-';
-        }
+          const value = p[valKey] as number;
+          return value > 0 ? fmtGBP(value) : '—';
+        },
       },
       { key: 'flags', label: 'Flags', render: columnRenderers.flags, sortable: false },
     ];
   }, [filters.horizon]);
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ 
-          color: '#F0F4F2', 
-          fontSize: '24px', 
-          fontWeight: 600,
-          marginBottom: '8px',
-          fontFamily: 'Bebas Neue, sans-serif',
-          letterSpacing: '1px'
-        }}>
-          🗂️ ALL PARTS
-        </h2>
-        <p style={{ color: 'rgba(240,244,242,0.7)', fontSize: '14px' }}>
-          Complete inventory view - {filteredParts.length} parts across all sites
-        </p>
-      </div>
+    <Box sx={{ py: { xs: 1, md: 2 } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+        <Inventory2 sx={{ color: 'primary.main' }} />
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+            All Parts
+          </Typography>
+          <Typography color="text.secondary">
+            Complete inventory view for {filteredParts.length.toLocaleString('en-GB')} visible parts
+          </Typography>
+        </Box>
+      </Box>
 
       {filteredParts.length > 0 ? (
         <DataTable
+          key={`all-parts-${filters.horizon}`}
           parts={filteredParts}
           columns={columns}
           defaultSort="part"
           defaultSortDir="asc"
         />
       ) : (
-        <div style={{
-          padding: '48px',
-          textAlign: 'center',
-          backgroundColor: 'rgba(0,0,0,0.2)',
-          borderRadius: '8px',
-          border: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
-          <h3 style={{ 
-            color: '#F0F4F2', 
-            fontSize: '20px', 
-            fontWeight: 600,
-            marginBottom: '8px'
-          }}>
-            No Data Loaded
-          </h3>
-          <p style={{ color: 'rgba(240,244,242,0.7)', fontSize: '14px' }}>
-            Upload your MRP and Stock files to see all parts
-          </p>
-        </div>
+        <Paper variant="outlined" sx={{ p: { xs: 4, md: 6 }, textAlign: 'center' }}>
+          <Inventory sx={{ color: 'text.secondary', fontSize: 44, mb: 1 }} />
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
+            No Parts Match
+          </Typography>
+          <Typography color="text.secondary">
+            Clear filters or load another data set to see inventory rows.
+          </Typography>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 }
 

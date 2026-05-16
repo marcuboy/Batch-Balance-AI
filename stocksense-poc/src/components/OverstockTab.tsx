@@ -1,101 +1,107 @@
 import { useMemo } from 'react';
+import { Box, Paper, Typography } from '@mui/material';
+import { CheckCircle, Inventory2 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import DataTable from './DataTable';
+import type { Column } from './DataTable';
+import PartThumbnail from './PartThumbnail';
 import { columnRenderers } from '../utils/columnRenderers';
 import { fmt, fmtGBP, fmtVol } from '../utils/formatters';
+import type { Part } from '../types';
 
 export default function OverstockTab() {
   const { filteredParts, filters } = useData();
 
   const overstockedParts = useMemo(() => {
-    const horizonKey = `over${filters.horizon}` as keyof typeof filteredParts[0];
-    return filteredParts.filter(p => (p[horizonKey] as number) > 0);
+    const horizonKey = `over${filters.horizon}` as keyof Part;
+    return filteredParts.filter((p) => (p[horizonKey] as number) > 0);
   }, [filteredParts, filters.horizon]);
 
-  const columns = useMemo(() => {
-    const horizonKey = `over${filters.horizon}` as keyof typeof filteredParts[0];
-    const volKey = `ov${filters.horizon}` as keyof typeof filteredParts[0];
-    const valKey = `osVal${filters.horizon}` as keyof typeof filteredParts[0];
+  const columns = useMemo<Column[]>(() => {
+    const horizonKey = `over${filters.horizon}` as keyof Part;
+    const volKey = `ov${filters.horizon}` as keyof Part;
+    const valKey = `osVal${filters.horizon}` as keyof Part;
+    const demandKey = `d${filters.horizon}` as keyof Part;
 
     return [
-      { key: 'part', label: 'Part Number' },
+      {
+        key: 'part',
+        label: 'Item',
+        render: (p) => <PartThumbnail part={p} showLabel />,
+      },
       { key: 'site', label: 'Site' },
       { key: 'vendor', label: 'Vendor' },
-      { key: 'vname', label: 'Vendor Name' },
-      { key: 'soh', label: 'Stock on Hand', render: (p) => fmt(p.soh) },
-      { 
-        key: `d${filters.horizon}`, 
-        label: `${filters.horizon}d Demand`, 
-        render: (p) => fmt((p as unknown as Record<string, number>)[`d${filters.horizon}`])
+      { key: 'vname', label: 'Vendor name' },
+      { key: 'soh', label: 'Stock on hand', align: 'right', render: (p) => fmt(p.soh) },
+      {
+        key: String(demandKey),
+        label: `${filters.horizon}d demand`,
+        align: 'right',
+        render: (p) => fmt(p[demandKey] as number),
       },
-      { 
-        key: horizonKey, 
-        label: 'Overstock Qty', 
-        render: (p) => <span style={{ color: '#FF6B6B', fontWeight: 600 }}>{fmt((p as unknown as Record<string, number>)[horizonKey])}</span>
+      {
+        key: String(horizonKey),
+        label: 'Overstock qty',
+        align: 'right',
+        render: (p) => (
+          <Box component="span" sx={{ color: 'error.main', fontWeight: 800 }}>
+            {fmt(p[horizonKey] as number)}
+          </Box>
+        ),
       },
       { key: 'risk', label: 'Risk', render: columnRenderers.risk, sortable: false },
-      { 
-        key: volKey, 
-        label: 'Volume (m³)', 
-        render: (p) => fmtVol((p as unknown as Record<string, number>)[volKey])
+      {
+        key: String(volKey),
+        label: 'Volume',
+        align: 'right',
+        render: (p) => fmtVol(p[volKey] as number),
       },
-      { 
-        key: valKey, 
-        label: 'Value (GBP)', 
-        render: (p) => fmtGBP((p as unknown as Record<string, number>)[valKey])
+      {
+        key: String(valKey),
+        label: 'Value',
+        align: 'right',
+        render: (p) => fmtGBP(p[valKey] as number),
       },
       { key: 'flags', label: 'Flags', render: columnRenderers.flags, sortable: false },
     ];
   }, [filters.horizon]);
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ 
-          color: '#F0F4F2', 
-          fontSize: '24px', 
-          fontWeight: 600,
-          marginBottom: '8px',
-          fontFamily: 'Bebas Neue, sans-serif',
-          letterSpacing: '1px'
-        }}>
-          📋 OVERSTOCK ANALYSIS
-        </h2>
-        <p style={{ color: 'rgba(240,244,242,0.7)', fontSize: '14px' }}>
-          {overstockedParts.length} parts with excess stock at {filters.horizon}-day horizon
-        </p>
-      </div>
+    <Box sx={{ py: { xs: 1, md: 2 } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+        <Inventory2 sx={{ color: 'error.main' }} />
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>
+            Overstock Analysis
+          </Typography>
+          <Typography color="text.secondary">
+            {overstockedParts.length.toLocaleString('en-GB')} parts with excess stock at a {filters.horizon}-day horizon
+          </Typography>
+        </Box>
+      </Box>
 
       {overstockedParts.length > 0 ? (
-        <DataTable 
-          parts={overstockedParts} 
+        <DataTable
+          key={`overstock-${filters.horizon}`}
+          parts={overstockedParts}
           columns={columns}
           defaultSort={`over${filters.horizon}`}
           defaultSortDir="desc"
+          emptyTitle="No overstock matches the current filters"
+          emptyMessage="Try clearing filters or changing the demand horizon."
         />
       ) : (
-        <div style={{
-          padding: '48px',
-          textAlign: 'center',
-          backgroundColor: 'rgba(0,0,0,0.2)',
-          borderRadius: '8px',
-          border: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
-          <h3 style={{ 
-            color: '#F0F4F2', 
-            fontSize: '20px', 
-            fontWeight: 600,
-            marginBottom: '8px'
-          }}>
+        <Paper variant="outlined" sx={{ p: { xs: 4, md: 6 }, textAlign: 'center' }}>
+          <CheckCircle sx={{ color: 'success.main', fontSize: 44, mb: 1 }} />
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
             No Overstock Found
-          </h3>
-          <p style={{ color: 'rgba(240,244,242,0.7)', fontSize: '14px' }}>
-            All parts are within demand requirements at the {filters.horizon}-day horizon
-          </p>
-        </div>
+          </Typography>
+          <Typography color="text.secondary">
+            All visible parts are within demand requirements for the selected horizon.
+          </Typography>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 }
 

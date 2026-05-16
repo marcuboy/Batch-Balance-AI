@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Container, Tabs, Tab, Typography } from '@mui/material';
+import { Box, Button, Chip, Container, Paper, Tabs, Tab, Typography } from '@mui/material';
 import {
   Star,
   TrendingUp,
@@ -7,6 +7,7 @@ import {
   Warning,
   ViewList,
   SearchOff,
+  AutoAwesome,
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import KPICard from './KPICard';
@@ -20,6 +21,7 @@ import NotOnMRPTab from './NotOnMRPTab';
 import QuickInsights from './QuickInsights';
 import InventoryOverviewChart from './InventoryOverviewChart';
 import TopIssues from './TopIssues';
+import { fmtVol } from '../utils/formatters';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -30,13 +32,13 @@ interface TabPanelProps {
 const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
   return (
     <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ py: { xs: 3, md: 4 } }}>{children}</Box>}
+      {value === index && <Box sx={{ py: { xs: 2.5, md: 3.5 } }}>{children}</Box>}
     </div>
   );
 };
 
 const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabChange }) => {
-  const { parts, filters } = useData();
+  const { parts, filteredParts, filters } = useData();
   const [activeTab, setActiveTab] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   
@@ -44,14 +46,19 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
   
   // Calculate KPIs using useMemo to avoid unnecessary recalculations
   const kpis = useMemo(() => {
-    return calculateKPIs(parts, filters.horizon);
-  }, [parts, filters.horizon]);
+    return calculateKPIs(filteredParts, filters.horizon);
+  }, [filteredParts, filters.horizon]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     if (onTabChange) {
       onTabChange(tabNames[newValue]);
     }
+  };
+
+  const handleModuleSelect = (newValue: number) => {
+    setActiveTab(newValue);
+    onTabChange?.(tabNames[newValue]);
   };
 
   const formatNumber = (num: number) => {
@@ -67,9 +74,14 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
     }).format(num);
   };
 
-  const formatVolume = (num: number) => {
-    return `${num.toFixed(2)} m³`;
-  };
+  const moduleFilters = [
+    { label: 'All', tab: 0, accent: 'primary.main' },
+    { label: 'Analysis', tab: 1, accent: 'secondary.main' },
+    { label: 'Overstock', tab: 2, accent: 'error.main' },
+    { label: 'Understock', tab: 3, accent: 'info.main' },
+    { label: 'Inventory', tab: 4, accent: 'success.main' },
+    { label: 'MRP gaps', tab: 5, accent: 'warning.main' },
+  ];
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: 'calc(100vh - 80px)' }}>
@@ -115,18 +127,85 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
       <FilterDrawer isOpen={filtersOpen} />
 
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            mt: { xs: 2, md: 3 },
+            p: { xs: 1, sm: 1.25 },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            overflowX: 'auto',
+            background: (theme) =>
+              theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, rgba(0, 122, 114, 0.18), rgba(49, 87, 213, 0.10))'
+                : 'linear-gradient(135deg, rgba(0, 122, 114, 0.08), rgba(49, 87, 213, 0.06))',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, color: 'text.secondary', flex: '0 0 auto' }}>
+            <AutoAwesome sx={{ fontSize: 18, color: 'primary.main' }} />
+            <Typography sx={{ fontWeight: 800, fontSize: '0.8rem' }}>Module</Typography>
+          </Box>
+          {moduleFilters.map((item) => {
+            const selected = activeTab === item.tab;
+            return (
+              <Button
+                key={item.label}
+                onClick={() => handleModuleSelect(item.tab)}
+                variant={selected ? 'contained' : 'text'}
+                size="small"
+                sx={{
+                  flex: '0 0 auto',
+                  px: 1.75,
+                  py: 0.9,
+                  color: selected ? 'primary.contrastText' : 'text.primary',
+                  bgcolor: selected ? item.accent : 'transparent',
+                  '&:hover': {
+                    bgcolor: selected ? item.accent : 'action.hover',
+                  },
+                }}
+              >
+                {item.label}
+              </Button>
+            );
+          })}
+        </Paper>
+
         <TabPanel value={activeTab} index={0}>
-          <Typography 
-            variant="h4" 
-            gutterBottom 
-            sx={{ 
-              mb: { xs: 3, md: 4 },
-              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-              fontWeight: 700,
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 2,
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              flexDirection: { xs: 'column', sm: 'row' },
+              mb: { xs: 2.5, md: 3.5 },
             }}
           >
-            Inventory Health Overview
-          </Typography>
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontSize: { xs: '1.6rem', sm: '1.9rem', md: '2.1rem' },
+                  fontWeight: 800,
+                  lineHeight: 1.15,
+                }}
+              >
+                Inventory Health Overview
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                Showing {filteredParts.length.toLocaleString('en-GB')} of {parts.length.toLocaleString('en-GB')} parts at a {filters.horizon}-day horizon
+              </Typography>
+            </Box>
+            {filteredParts.length !== parts.length && (
+              <Chip
+                label="Filtered view"
+                color="primary"
+                variant="outlined"
+                sx={{ fontWeight: 700 }}
+              />
+            )}
+          </Box>
 
           <Typography 
             variant="h6" 
@@ -146,7 +225,7 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               md: 'repeat(2, 1fr)',
-              lg: 'repeat(4, 1fr)',
+              lg: 'repeat(5, 1fr)',
             },
             gap: { xs: 2, sm: 2.5, md: 3 },
             mb: { xs: 3, md: 4 },
@@ -175,28 +254,13 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
               subtitle="cash tied up"
               color="error.main"
             />
+            <KPICard
+              title="Overstock Volume"
+              value={fmtVol(kpis.overstockVolume)}
+              subtitle="warehouse space wasted"
+              color="error.main"
+            />
           </Box>
-
-          {kpis.overstockVolume > 0 && (
-            <Box sx={{ 
-              mb: { xs: 3, md: 4 },
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(2, 1fr)',
-                lg: 'repeat(4, 1fr)',
-              },
-              gap: { xs: 2, sm: 2.5, md: 3 },
-            }}>
-              <KPICard
-                title="Overstock Volume"
-                value={formatVolume(kpis.overstockVolume)}
-                subtitle="warehouse space wasted"
-                color="error.main"
-              />
-            </Box>
-          )}
 
           <Typography 
             variant="h6" 
@@ -216,9 +280,10 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               md: 'repeat(2, 1fr)',
-              lg: 'repeat(4, 1fr)',
+              lg: 'repeat(5, 1fr)',
             },
             gap: { xs: 2, sm: 2.5, md: 3 },
+            mb: { xs: 3, md: 4 },
           }}>
             <KPICard
               title="Understocked Parts"
@@ -242,6 +307,12 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
               title="Shortage Value at Risk"
               value={formatCurrency(kpis.shortageValue)}
               subtitle="if production stops"
+              color="info.main"
+            />
+            <KPICard
+              title="Shortage Volume"
+              value={fmtVol(kpis.shortageVolume)}
+              subtitle="replenishment space needed"
               color="info.main"
             />
           </Box>

@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { Part } from '../types';
+import type { ERPMap, ERPSystem, Part } from '../types';
 
 /**
  * Process uploaded Excel files and convert to Part data
@@ -14,15 +14,174 @@ interface FileData {
   prices?: unknown[][];
 }
 
-export const processFiles = async (files: FileData): Promise<{ parts: Part[], mrpDate: string }> => {
+const ERP_MAPS: Record<Exclude<ERPSystem, 'other'>, ERPMap> = {
+  standard: {
+    mrpPlantCol: 0,
+    mrpVendorCol: 1,
+    mrpVnameCol: 2,
+    mrpPartCol: 8,
+    mrpAnalystHeader: 'analyst',
+    mrpDateStartCol: 38,
+    stkWarehouse: 'Warehouse',
+    stkItem: 'Item',
+    stkSoh: 'Inventory_on_Hand',
+    siteMap: { G: 'WBN', A: 'STA', WBN: 'WBN', STA: 'STA' },
+    warehouseMap: { 'WH-ALPHA': 'WBN', 'WH-BETA': 'STA', WBN: 'WBN', STA: 'STA' },
+  },
+  sap: {
+    mrpPlantCol: 'WERKS',
+    mrpVendorCol: 'LIFNR',
+    mrpVnameCol: 'NAME1',
+    mrpPartCol: 'MATNR',
+    mrpAnalystHeader: 'analyst',
+    mrpDateStartCol: 38,
+    stkWarehouse: 'LGORT',
+    stkItem: 'MATNR',
+    stkSoh: 'LABST',
+    siteMap: { '1000': 'WBN', '2000': 'STA', G: 'WBN', A: 'STA', WBN: 'WBN', STA: 'STA' },
+    warehouseMap: { '0001': 'WBN', '0002': 'STA', 'WH-ALPHA': 'WBN', 'WH-BETA': 'STA', WBN: 'WBN', STA: 'STA' },
+  },
+  oracle: {
+    mrpPlantCol: 'ORGANIZATION_CODE',
+    mrpVendorCol: 'SUPPLIER_NUMBER',
+    mrpVnameCol: 'SUPPLIER_NAME',
+    mrpPartCol: 'ITEM_NUMBER',
+    mrpAnalystHeader: 'planner',
+    mrpDateStartCol: 38,
+    stkWarehouse: 'SUBINVENTORY',
+    stkItem: 'ITEM_NUMBER',
+    stkSoh: 'ON_HAND_QUANTITY',
+    siteMap: { M1: 'WBN', M2: 'STA', G: 'WBN', A: 'STA', WBN: 'WBN', STA: 'STA' },
+    warehouseMap: { STORE1: 'WBN', STORE2: 'STA', 'WH-ALPHA': 'WBN', 'WH-BETA': 'STA', WBN: 'WBN', STA: 'STA' },
+  },
+  dynamics: {
+    mrpPlantCol: 'SITE',
+    mrpVendorCol: 'VENDOR_ACCOUNT',
+    mrpVnameCol: 'VENDOR_NAME',
+    mrpPartCol: 'ITEM_NUMBER',
+    mrpAnalystHeader: 'buyer',
+    mrpDateStartCol: 38,
+    stkWarehouse: 'WAREHOUSE',
+    stkItem: 'ITEM_NUMBER',
+    stkSoh: 'ON_HAND_QTY',
+    siteMap: { SITE1: 'WBN', SITE2: 'STA', G: 'WBN', A: 'STA', WBN: 'WBN', STA: 'STA' },
+    warehouseMap: { WH1: 'WBN', WH2: 'STA', 'WH-ALPHA': 'WBN', 'WH-BETA': 'STA', WBN: 'WBN', STA: 'STA' },
+  },
+  infor: {
+    mrpPlantCol: 'FACILITY',
+    mrpVendorCol: 'VENDOR_ID',
+    mrpVnameCol: 'VENDOR_NAME',
+    mrpPartCol: 'ITEM_NBR',
+    mrpAnalystHeader: 'planner_id',
+    mrpDateStartCol: 38,
+    stkWarehouse: 'WAREHOUSE',
+    stkItem: 'ITEM_NBR',
+    stkSoh: 'QTY_ON_HAND',
+    siteMap: { FAC1: 'WBN', FAC2: 'STA', G: 'WBN', A: 'STA', WBN: 'WBN', STA: 'STA' },
+    warehouseMap: { WH01: 'WBN', WH02: 'STA', 'WH-ALPHA': 'WBN', 'WH-BETA': 'STA', WBN: 'WBN', STA: 'STA' },
+  },
+  manhattan: {
+    mrpPlantCol: 'FACILITY_ID',
+    mrpVendorCol: 'VENDOR_NBR',
+    mrpVnameCol: 'VENDOR_NAME',
+    mrpPartCol: 'SKU_NBR',
+    mrpAnalystHeader: 'analyst',
+    mrpDateStartCol: 38,
+    stkWarehouse: 'WAREHOUSE_ID',
+    stkItem: 'SKU_NBR',
+    stkSoh: 'ON_HAND_QTY',
+    siteMap: { F1: 'WBN', F2: 'STA', G: 'WBN', A: 'STA', WBN: 'WBN', STA: 'STA' },
+    warehouseMap: { DC1: 'WBN', DC2: 'STA', 'WH-ALPHA': 'WBN', 'WH-BETA': 'STA', WBN: 'WBN', STA: 'STA' },
+  },
+};
+
+const createHeaderMap = (headers: unknown[]) => {
+  const map = new Map<string, number>();
+  headers.forEach((header, index) => {
+    if (header != null && String(header).trim()) {
+      map.set(String(header).trim().toLowerCase(), index);
+    }
+  });
+  return map;
+};
+
+const resolveColumn = (row: unknown[], colDef: number | string, headerMap: Map<string, number>) => {
+  if (typeof colDef === 'number') return row[colDef];
+  const idx = headerMap.get(colDef.toLowerCase());
+  return idx == null ? undefined : row[idx];
+};
+
+const requireColumnIndex = (headerMap: Map<string, number>, column: string, label: string) => {
+  const idx = headerMap.get(column.toLowerCase());
+  if (idx == null) {
+    throw new Error(`${label} file is missing required column "${column}"`);
+  }
+  return idx;
+};
+
+const findColumnIndex = (headerMap: Map<string, number>, candidates: string[]) => {
+  for (const candidate of candidates) {
+    const idx = headerMap.get(candidate.toLowerCase());
+    if (idx != null) return idx;
+  }
+  return -1;
+};
+
+const normaliseSite = (raw: unknown, mapping: Record<string, string>) => {
+  const value = raw == null ? '' : String(raw).trim();
+  return mapping[value] || mapping[value.toUpperCase()] || (value === 'WBN' || value === 'STA' ? value : '');
+};
+
+const parseMrpDate = (headers: unknown[], startCol: number) => {
+  for (let i = startCol; i < headers.length; i++) {
+    const value = headers[i];
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString().split('T')[0];
+    }
+    if (value && !Number.isNaN(Date.parse(String(value)))) {
+      return new Date(String(value)).toISOString().split('T')[0];
+    }
+  }
+  return new Date().toISOString().split('T')[0];
+};
+
+const coercePositiveNumber = (value: unknown, fallback = 0) => {
+  const parsed = parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const calculateCubeVolumeM3 = (length: number, width: number, height: number, unit: string) => {
+  if (!length || !width || !height) return 0;
+  const normalisedUnit = unit.toLowerCase();
+  if (normalisedUnit.includes('mm')) return (length * width * height) / 1_000_000_000;
+  if (normalisedUnit.includes('m') && !normalisedUnit.includes('cm') && !normalisedUnit.includes('mm')) {
+    return length * width * height;
+  }
+  return (length * width * height) / 1_000_000;
+};
+
+export const processFiles = async (
+  files: FileData,
+  erpSystem: ERPSystem = 'standard'
+): Promise<{ parts: Part[], mrpDate: string }> => {
   const { mrp, stock, packaging, dimensions, prices } = files;
+  const erpMap = ERP_MAPS[erpSystem === 'other' ? 'standard' : erpSystem];
 
   if (!mrp || !stock) {
     throw new Error('MRP and Stock files are required');
   }
+  if (mrp.length < 2) {
+    throw new Error('MRP file does not contain any data rows');
+  }
+  if (stock.length < 2) {
+    throw new Error('Stock file does not contain any data rows');
+  }
 
   const allParts: Part[] = [];
-  const mrpDate = new Date().toISOString().split('T')[0]; // Use current date for now
+  const mrpHeaders = mrp[0] || [];
+  const mrpHeaderMap = createHeaderMap(mrpHeaders);
+  const mrpDate = parseMrpDate(mrpHeaders, erpMap.mrpDateStartCol);
+  const analystCol = mrpHeaderMap.get(erpMap.mrpAnalystHeader.toLowerCase()) ?? mrpHeaderMap.get('analyst');
 
   // Process MRP data
   interface MRPData {
@@ -31,26 +190,24 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
     vname: string;
     part: string;
     analyst: string;
+    imageUrl?: string;
     d30: number;
     d60: number;
     d90: number;
     d120: number;
   }
   const mrpMap = new Map<string, MRPData>();
+  const mrpImageCol = findColumnIndex(mrpHeaderMap, ['image', 'image_url', 'image url', 'photo', 'photo_url', 'product_image']);
   for (let i = 1; i < mrp.length; i++) {
     const row = mrp[i];
-    const plantRaw = row[0]?.toString().trim() || '';
-    
-    // Map plant codes: G → WBN, A → STA
-    let site: string;
-    if (plantRaw === 'G') site = 'WBN';
-    else if (plantRaw === 'A') site = 'STA';
-    else continue; // Skip invalid plant codes
-    
-    const vendor = row[1]?.toString() || '';
-    const vname = row[2]?.toString() || '';
-    const part = row[8]?.toString().trim() || '';
-    const analyst = row[3]?.toString() || '';
+    const site = normaliseSite(resolveColumn(row, erpMap.mrpPlantCol, mrpHeaderMap), erpMap.siteMap);
+    if (!site) continue;
+
+    const vendor = resolveColumn(row, erpMap.mrpVendorCol, mrpHeaderMap)?.toString().trim() || '';
+    const vname = resolveColumn(row, erpMap.mrpVnameCol, mrpHeaderMap)?.toString().trim() || '';
+    const part = resolveColumn(row, erpMap.mrpPartCol, mrpHeaderMap)?.toString().trim() || '';
+    const analyst = analystCol != null ? row[analystCol]?.toString().trim() || '' : row[3]?.toString().trim() || '';
+    const imageUrl = mrpImageCol >= 0 ? row[mrpImageCol]?.toString().trim() || undefined : undefined;
 
     if (!part) continue;
 
@@ -58,9 +215,9 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
     
     // Calculate demand from columns 38 onwards (125 days)
     let d30 = 0, d60 = 0, d90 = 0, d120 = 0;
-    for (let j = 38; j < Math.min(row.length, 163); j++) {
+    for (let j = erpMap.mrpDateStartCol; j < Math.min(row.length, erpMap.mrpDateStartCol + 125); j++) {
       const demand = parseFloat(String(row[j] ?? '')) || 0;
-      const dayIndex = j - 38;
+      const dayIndex = j - erpMap.mrpDateStartCol;
       if (dayIndex < 30) d30 += demand;
       if (dayIndex < 60) d60 += demand;
       if (dayIndex < 90) d90 += demand;
@@ -73,6 +230,7 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
       vname,
       part,
       analyst,
+      imageUrl,
       d30,
       d60,
       d90,
@@ -83,29 +241,22 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
   // Process Stock data - find columns by header name
   const stockMap = new Map<string, number>();
   if (stock && stock.length > 0) {
-    const headers = stock[0].map((h: unknown) => h ? String(h).trim() : '');
-    const whCol = headers.indexOf('Warehouse');
-    const itemCol = headers.indexOf('Item');
-    const sohCol = headers.indexOf('Inventory_on_Hand');
-    
-    if (whCol === -1 || itemCol === -1 || sohCol === -1) {
-      console.warn('Stock file missing required headers: Warehouse, Item, Inventory_on_Hand');
-    } else {
-      for (let i = 1; i < stock.length; i++) {
-        const row = stock[i];
-        const warehouse = row[whCol]?.toString().trim() || '';
-        const item = row[itemCol]?.toString().trim() || '';
-        const soh = parseFloat(String(row[sohCol] ?? '')) || 0;
+    const stockHeaderMap = createHeaderMap(stock[0]);
+    const whCol = requireColumnIndex(stockHeaderMap, erpMap.stkWarehouse, 'Stock');
+    const itemCol = requireColumnIndex(stockHeaderMap, erpMap.stkItem, 'Stock');
+    const sohCol = requireColumnIndex(stockHeaderMap, erpMap.stkSoh, 'Stock');
 
-        // Map warehouse codes: WH-ALPHA → WBN, WH-BETA → STA
-        let site: string;
-        if (warehouse === 'WH-ALPHA') site = 'WBN';
-        else if (warehouse === 'WH-BETA') site = 'STA';
-        else continue; // Skip invalid warehouse codes
-        
-        const key = `${site}-${item}`;
-        stockMap.set(key, (stockMap.get(key) || 0) + soh);
-      }
+    for (let i = 1; i < stock.length; i++) {
+      const row = stock[i];
+      const site = normaliseSite(row[whCol], erpMap.warehouseMap);
+      if (!site) continue;
+
+      const item = row[itemCol]?.toString().trim() || '';
+      const soh = parseFloat(String(row[sohCol] ?? '')) || 0;
+      if (!item) continue;
+
+      const key = `${site}-${item}`;
+      stockMap.set(key, (stockMap.get(key) || 0) + soh);
     }
   }
 
@@ -113,18 +264,28 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
   interface PackagingData {
     pkgItem: string;
     qtyPerBox: number;
+    packGroup: string;
   }
   const packagingMap = new Map<string, PackagingData>();
-  if (packaging) {
+  if (packaging && packaging.length > 0) {
+    const packagingHeaderMap = createHeaderMap(packaging[0]);
+    const childCol = findColumnIndex(packagingHeaderMap, ['Item (child)', 'Item', 'Child Item', 'ChildItem', 'Part', 'Part Number']);
+    const pkgCol = findColumnIndex(packagingHeaderMap, ['Packaging Item', 'Packaging Item (child)', 'Package Item', 'Pkg Item']);
+    const qtyCol = findColumnIndex(packagingHeaderMap, ['Quantity', 'Qty', 'Qty Per Box', 'Quantity per box']);
+    const defaultCol = findColumnIndex(packagingHeaderMap, ['Default Package Definition', 'Default', 'Is Default']);
+    const packTypeCol = findColumnIndex(packagingHeaderMap, ['Pack Type', 'Packaging Description', 'Packaging Item']);
+
     for (let i = 1; i < packaging.length; i++) {
       const row = packaging[i];
-      const childItem = row[0]?.toString() || '';
-      const pkgItem = row[1]?.toString() || '';
-      const qty = parseFloat(String(row[2] ?? '')) || 1;
-      const isDefault = row[3]?.toString().toLowerCase() === 'yes';
+      const childItem = row[childCol >= 0 ? childCol : 0]?.toString().trim() || '';
+      const pkgItem = row[pkgCol >= 0 ? pkgCol : 1]?.toString().trim() || '';
+      const qty = coercePositiveNumber(row[qtyCol >= 0 ? qtyCol : 2], 1);
+      const defaultValue = row[defaultCol]?.toString().toLowerCase() || '';
+      const isDefault = defaultCol < 0 || ['yes', 'true', '1', 'default'].includes(defaultValue);
+      const packGroup = row[packTypeCol]?.toString().trim() || pkgItem || 'Unknown';
 
-      if (isDefault) {
-        packagingMap.set(childItem, { pkgItem, qtyPerBox: qty });
+      if (childItem && pkgItem && isDefault) {
+        packagingMap.set(childItem, { pkgItem, qtyPerBox: qty, packGroup });
       }
     }
   }
@@ -134,17 +295,33 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
     length: number;
     width: number;
     height: number;
+    volumeM3: number;
   }
   const dimensionsMap = new Map<string, DimensionsData>();
-  if (dimensions) {
+  if (dimensions && dimensions.length > 0) {
+    const dimensionsHeaderMap = createHeaderMap(dimensions[0]);
+    const pkgCol = findColumnIndex(dimensionsHeaderMap, ['Packaging Item (child)', 'Packaging Item', 'Package Item', 'Pkg Item']);
+    const lengthCol = findColumnIndex(dimensionsHeaderMap, ['Length', 'L']);
+    const widthCol = findColumnIndex(dimensionsHeaderMap, ['Width', 'W']);
+    const heightCol = findColumnIndex(dimensionsHeaderMap, ['Height', 'H']);
+    const unitCol = findColumnIndex(dimensionsHeaderMap, ['Unit', 'UOM']);
+    const volumeM3Col = findColumnIndex(dimensionsHeaderMap, ['Volume_m3', 'Volume m3', 'Volume (m3)', 'Volume (m³)']);
+    const volumeCm3Col = findColumnIndex(dimensionsHeaderMap, ['Volume_cm3', 'Volume cm3', 'Volume (cm3)']);
+
     for (let i = 1; i < dimensions.length; i++) {
       const row = dimensions[i];
-      const pkgItem = row[0]?.toString() || '';
-      const length = parseFloat(String(row[1] ?? '')) || 0;
-      const width = parseFloat(String(row[2] ?? '')) || 0;
-      const height = parseFloat(String(row[3] ?? '')) || 0;
+      const pkgItem = row[pkgCol >= 0 ? pkgCol : 0]?.toString().trim() || '';
+      const length = coercePositiveNumber(row[lengthCol >= 0 ? lengthCol : 1]);
+      const width = coercePositiveNumber(row[widthCol >= 0 ? widthCol : 2]);
+      const height = coercePositiveNumber(row[heightCol >= 0 ? heightCol : 3]);
+      const unit = row[unitCol]?.toString().trim() || 'cm';
+      const explicitM3 = coercePositiveNumber(row[volumeM3Col]);
+      const explicitCm3 = coercePositiveNumber(row[volumeCm3Col]);
+      const volumeM3 = explicitM3 || (explicitCm3 ? explicitCm3 / 1_000_000 : calculateCubeVolumeM3(length, width, height, unit));
 
-      dimensionsMap.set(pkgItem, { length, width, height });
+      if (pkgItem) {
+        dimensionsMap.set(pkgItem, { length, width, height, volumeM3 });
+      }
     }
   }
 
@@ -153,27 +330,29 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
     price: number;
     atb: boolean;
     obs: boolean;
+    imageUrl?: string;
   }
   const pricesMap = new Map<string, PricesData>();
-  if (prices) {
+  if (prices && prices.length > 0) {
+    const priceHeaderMap = createHeaderMap(prices[0]);
+    const imageCol = findColumnIndex(priceHeaderMap, ['image', 'image_url', 'image url', 'photo', 'photo_url', 'product_image']);
     for (let i = 1; i < prices.length; i++) {
       const row = prices[i];
       const part = row[0]?.toString() || '';
       const price = parseFloat(String(row[2] ?? '')) || 0;
       const atb = row[3]?.toString().toLowerCase() === 'yes';
       const obs = row[4]?.toString().toLowerCase() === 'yes';
+      const imageUrl = imageCol >= 0 ? row[imageCol]?.toString().trim() || undefined : undefined;
 
-      pricesMap.set(part, { price, atb, obs });
+      pricesMap.set(part, { price, atb, obs, imageUrl });
     }
   }
 
   // Combine all data
-  console.log(`Processing ${mrpMap.size} MRP entries with ${stockMap.size} stock entries`);
-  
   mrpMap.forEach((mrpData, key) => {
     const soh = stockMap.get(key) || 0;
-    const packaging = packagingMap.get(mrpData.part) || { pkgItem: '', qtyPerBox: 1 };
-    const dims = dimensionsMap.get(packaging.pkgItem) || { length: 0, width: 0, height: 0 };
+    const packaging = packagingMap.get(mrpData.part) || { pkgItem: '', qtyPerBox: 1, packGroup: 'Unknown' };
+    const dims = dimensionsMap.get(packaging.pkgItem) || { length: 0, width: 0, height: 0, volumeM3: 0 };
     const priceData = pricesMap.get(mrpData.part) || { price: 0, atb: false, obs: false };
 
     // Calculate overstock/understock
@@ -204,12 +383,16 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
       else shortageRisk = 'Low';
     }
 
-    // Calculate volume (cm³ to m³)
-    const boxVolume = (dims.length * dims.width * dims.height) / 1000000; // cm³ to m³
-    const ov30 = over30 > 0 ? (over30 / packaging.qtyPerBox) * boxVolume : 0;
-    const ov60 = over60 > 0 ? (over60 / packaging.qtyPerBox) * boxVolume : 0;
-    const ov90 = over90 > 0 ? (over90 / packaging.qtyPerBox) * boxVolume : 0;
-    const ov120 = over120 > 0 ? (over120 / packaging.qtyPerBox) * boxVolume : 0;
+    const boxVolume = dims.volumeM3 || calculateCubeVolumeM3(dims.length, dims.width, dims.height, 'cm');
+    const boxesFor = (qty: number) => (qty > 0 && packaging.qtyPerBox > 0 ? Math.ceil(qty / packaging.qtyPerBox) : 0);
+    const ov30 = boxesFor(over30) * boxVolume;
+    const ov60 = boxesFor(over60) * boxVolume;
+    const ov90 = boxesFor(over90) * boxVolume;
+    const ov120 = boxesFor(over120) * boxVolume;
+    const uv30 = boxesFor(under30) * boxVolume;
+    const uv60 = boxesFor(under60) * boxVolume;
+    const uv90 = boxesFor(under90) * boxVolume;
+    const uv120 = boxesFor(under120) * boxVolume;
 
     // Calculate values
     const osVal30 = over30 > 0 ? over30 * priceData.price : 0;
@@ -228,8 +411,9 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
       vendor: mrpData.vendor,
       vname: mrpData.vname,
       analyst: mrpData.analyst,
+      imageUrl: priceData.imageUrl || mrpData.imageUrl,
       soh,
-      packGroup: packaging.pkgItem ? `Box-${Math.floor(Math.random() * 3) + 1}` : 'Unknown',
+      packGroup: packaging.packGroup,
       isTLS: mrpData.vname.toLowerCase().includes('tls') || mrpData.vname.toLowerCase().includes('kit'),
       d30: mrpData.d30,
       d60: mrpData.d60,
@@ -251,6 +435,10 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
       ov60,
       ov90,
       ov120,
+      uv30,
+      uv60,
+      uv90,
+      uv120,
       price: priceData.price,
       atb: priceData.atb,
       obs: priceData.obs,
@@ -267,9 +455,9 @@ export const processFiles = async (files: FileData): Promise<{ parts: Part[], mr
     allParts.push(part);
   });
 
-  console.log(`Processed ${allParts.length} parts total`);
-  console.log(`Overstock parts: ${allParts.filter(p => p.over30 > 0).length}`);
-  console.log(`Understock parts: ${allParts.filter(p => p.under30 > 0).length}`);
+  if (allParts.length === 0) {
+    throw new Error('No matching parts were found. Check the selected ERP profile and required column mappings.');
+  }
 
   return { parts: allParts, mrpDate };
 };

@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
-import { Box, Paper, Typography, Chip, Avatar } from '@mui/material';
-import { Warning, TrendingDown, LocalShipping } from '@mui/icons-material';
+import { Box, Paper, Typography, Chip } from '@mui/material';
+import { Warning } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import { fmtGBP, fmtNumber } from '../utils/formatters';
+import PartThumbnail from './PartThumbnail';
+import type { Part } from '../types';
 
 interface IssueItem {
   part: string;
+  partData: Part;
   type: 'overstock' | 'understock';
   severity: 'Critical' | 'High';
   value: number;
@@ -13,9 +16,10 @@ interface IssueItem {
 }
 
 const TopIssues: React.FC = () => {
-  const { parts, filters } = useData();
+  const { filteredParts, filters } = useData();
 
   const topIssues = useMemo(() => {
+    const parts = filteredParts;
     const horizonKey = `over${filters.horizon}` as keyof typeof parts[0];
     const underKey = `under${filters.horizon}` as keyof typeof parts[0];
     
@@ -27,6 +31,7 @@ const TopIssues: React.FC = () => {
       if (over > 0 && (p.risk === 'Critical' || p.risk === 'High')) {
         issues.push({
           part: p.part,
+          partData: p,
           type: 'overstock',
           severity: p.risk as 'Critical' | 'High',
           value: p.price * over,
@@ -41,6 +46,7 @@ const TopIssues: React.FC = () => {
       if (under > 0 && (p.shortageRisk === 'Critical' || p.shortageRisk === 'High')) {
         issues.push({
           part: p.part,
+          partData: p,
           type: 'understock',
           severity: p.shortageRisk as 'Critical' | 'High',
           value: p.price * under,
@@ -57,11 +63,7 @@ const TopIssues: React.FC = () => {
         return b.value - a.value;
       })
       .slice(0, 8);
-  }, [parts, filters.horizon]);
-
-  const getTypeIcon = (type: string) => {
-    return type === 'overstock' ? <TrendingDown /> : <LocalShipping />;
-  };
+  }, [filteredParts, filters.horizon]);
 
   const getTypeColor = (type: string) => {
     return type === 'overstock' ? 'error' : 'info';
@@ -78,7 +80,9 @@ const TopIssues: React.FC = () => {
         </Box>
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography color="text.secondary">
-            No critical issues found! Your inventory is well-balanced.
+            {filteredParts.length === 0
+              ? 'No parts match the current filters.'
+              : 'No critical issues found in the current view.'}
           </Typography>
         </Box>
       </Paper>
@@ -101,7 +105,8 @@ const TopIssues: React.FC = () => {
             variant="outlined"
             sx={{
               p: 2,
-              display: 'flex',
+              display: { xs: 'grid', sm: 'flex' },
+              gridTemplateColumns: { xs: '44px 1fr', sm: 'none' },
               alignItems: 'center',
               gap: 2,
               transition: 'all 0.2s',
@@ -111,23 +116,18 @@ const TopIssues: React.FC = () => {
               },
             }}
           >
-            <Avatar
-              sx={{
-                bgcolor: `${getTypeColor(issue.type)}.main`,
-                width: 40,
-                height: 40,
-              }}
-            >
-              {getTypeIcon(issue.type)}
-            </Avatar>
+            <Box sx={{ gridColumn: { xs: '1', sm: 'auto' } }}>
+              <PartThumbnail part={issue.partData} size={40} />
+            </Box>
             
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <Box sx={{ flex: 1, minWidth: 0, gridColumn: { xs: '2', sm: 'auto' } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
                 <Typography
                   variant="subtitle2"
                   sx={{
                     fontWeight: 600,
                     fontFamily: 'monospace',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {issue.part}
@@ -148,7 +148,7 @@ const TopIssues: React.FC = () => {
               </Box>
             </Box>
             
-            <Box sx={{ textAlign: 'right', minWidth: 100 }}>
+            <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, minWidth: 100, gridColumn: { xs: '2', sm: 'auto' } }}>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 {fmtGBP(issue.value)}
               </Typography>

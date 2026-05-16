@@ -19,11 +19,20 @@ interface InsightItem {
 }
 
 const QuickInsights: React.FC = () => {
-  const { parts, filters } = useData();
+  const { filteredParts, filters } = useData();
 
   const insights = useMemo(() => {
+    const parts = filteredParts;
     const horizonKey = `over${filters.horizon}` as keyof typeof parts[0];
     const underKey = `under${filters.horizon}` as keyof typeof parts[0];
+    if (parts.length === 0) {
+      return [{
+        icon: <Inventory2 />,
+        title: 'No matching parts',
+        description: 'Clear filters or change the horizon to restore the overview',
+        severity: 'info',
+      }] as InsightItem[];
+    }
     
     const criticalOverstock = parts.filter(p => p.risk === 'Critical').length;
     const criticalUnderstock = parts.filter(p => p.shortageRisk === 'Critical').length;
@@ -39,7 +48,7 @@ const QuickInsights: React.FC = () => {
       const under = (p as unknown as Record<string, number>)[underKey];
       return over <= 0 && under <= 0;
     }).length;
-    const balancedPercentage = ((balancedParts / parts.length) * 100).toFixed(1);
+    const balancedPercentage = parts.length > 0 ? ((balancedParts / parts.length) * 100).toFixed(1) : '0.0';
 
     const insightsList: InsightItem[] = [];
 
@@ -92,8 +101,17 @@ const QuickInsights: React.FC = () => {
       });
     }
 
+    if (insightsList.length === 0 && parts.length > 0) {
+      insightsList.push({
+        icon: <CheckCircle />,
+        title: 'No urgent exceptions',
+        description: 'Current filters do not show critical overstock or shortage actions',
+        severity: 'success',
+      });
+    }
+
     return insightsList;
-  }, [parts, filters.horizon]);
+  }, [filteredParts, filters.horizon]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

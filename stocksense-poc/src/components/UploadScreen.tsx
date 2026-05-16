@@ -11,6 +11,7 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import { CloudUpload, PlayArrow, CheckCircle } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
@@ -82,7 +83,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({ onAnalyze }) => {
         packaging: packagingData,
         dimensions: dimensionsData,
         prices: pricesData,
-      });
+      }, erpSystem);
 
       // Update context
       setParts(parts);
@@ -119,7 +120,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({ onAnalyze }) => {
               fontWeight: 700,
               color: 'text.primary',
               mb: 2,
-              letterSpacing: '-0.02em',
+              letterSpacing: 0,
               lineHeight: 1.2,
             }}
           >
@@ -191,23 +192,21 @@ const UploadScreen: React.FC<UploadScreenProps> = ({ onAnalyze }) => {
                 },
               }}
             >
-              <MenuItem value="standard">📊 Standard / Custom</MenuItem>
-              <MenuItem value="sap">🔷 SAP MM / EWM</MenuItem>
-              <MenuItem value="oracle">🔴 Oracle SCM</MenuItem>
-              <MenuItem value="dynamics">🟦 Dynamics 365</MenuItem>
-              <MenuItem value="infor">🟠 Infor WMS</MenuItem>
-              <MenuItem value="manhattan">🟣 Manhattan Associates</MenuItem>
-              <MenuItem value="other">⚙️ Other — Custom mapping</MenuItem>
+            <MenuItem value="standard">Standard / Custom</MenuItem>
+            <MenuItem value="sap">SAP MM / EWM</MenuItem>
+            <MenuItem value="oracle">Oracle SCM</MenuItem>
+            <MenuItem value="dynamics">Dynamics 365</MenuItem>
+            <MenuItem value="infor">Infor WMS</MenuItem>
+            <MenuItem value="manhattan">Manhattan Associates</MenuItem>
+            <MenuItem value="other">Other / Custom mapping</MenuItem>
             </Select>
           </FormControl>
         </Box>
 
         {error && (
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography color="error" variant="body2" sx={{ fontWeight: 600 }}>
-              {error}
-            </Typography>
-          </Box>
+          <Alert severity="error" sx={{ mb: 3, maxWidth: 720, mx: 'auto' }}>
+            {error}
+          </Alert>
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 } }}>

@@ -18,6 +18,11 @@ function App() {
     setThemeMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
   };
 
+  const handleReset = () => {
+    setShowDashboard(false);
+    setActiveTab('overview');
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -27,6 +32,7 @@ function App() {
             activeTab={activeTab} 
             themeMode={themeMode}
             onToggleTheme={toggleTheme}
+            onReset={handleReset}
           />
           {!showDashboard ? (
             <UploadScreen onAnalyze={() => setShowDashboard(true)} />

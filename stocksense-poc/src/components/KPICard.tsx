@@ -41,7 +41,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, color =
               textTransform: 'uppercase',
               fontWeight: 700,
               fontSize: { xs: '0.65rem', sm: '0.7rem' },
-              letterSpacing: '0.05em',
+              letterSpacing: 0,
             }}
           >
             {title}
@@ -60,7 +60,7 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, color =
             lineHeight: 1,
             mb: { xs: 0.5, sm: 0.75 },
             fontWeight: 700,
-            letterSpacing: '-0.02em',
+            letterSpacing: 0,
           }}
         >
           {value}

@@ -4,11 +4,12 @@ import { Bar } from 'react-chartjs-2';
 import { useData } from '../context/DataContext';
 
 const InventoryOverviewChart: React.FC = () => {
-  const { parts, filters } = useData();
+  const { filteredParts, filters } = useData();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
   const chartData = useMemo(() => {
+    const parts = filteredParts;
     const horizonKey = `over${filters.horizon}` as keyof typeof parts[0];
     const underKey = `under${filters.horizon}` as keyof typeof parts[0];
 
@@ -61,7 +62,7 @@ const InventoryOverviewChart: React.FC = () => {
         },
       ],
     };
-  }, [parts, filters.horizon]);
+  }, [filteredParts, filters.horizon]);
 
   const options = {
     responsive: true,

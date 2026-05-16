@@ -28,7 +28,7 @@ const RiskBadge: React.FC<RiskBadgeProps> = ({ risk, type = 'overstock' }) => {
       border: isShortage
         ? (isDark ? 'rgba(6,182,212,0.4)' : 'rgba(6,182,212,0.3)')
         : (isDark ? 'rgba(232,69,60,0.4)' : 'rgba(220,38,38,0.3)'),
-      icon: '🔴',
+      dot: isShortage ? '#06B6D4' : '#DC2626',
     },
     High: {
       bg: isShortage
@@ -40,7 +40,7 @@ const RiskBadge: React.FC<RiskBadgeProps> = ({ risk, type = 'overstock' }) => {
       border: isShortage
         ? (isDark ? 'rgba(6,182,212,0.3)' : 'rgba(6,182,212,0.25)')
         : (isDark ? 'rgba(245,158,11,0.4)' : 'rgba(234,88,12,0.3)'),
-      icon: '🟠',
+      dot: isShortage ? '#22D3EE' : '#EA580C',
     },
     Medium: {
       bg: isShortage
@@ -52,7 +52,7 @@ const RiskBadge: React.FC<RiskBadgeProps> = ({ risk, type = 'overstock' }) => {
       border: isShortage
         ? (isDark ? 'rgba(6,182,212,0.2)' : 'rgba(6,182,212,0.2)')
         : (isDark ? 'rgba(245,158,11,0.3)' : 'rgba(234,88,12,0.25)'),
-      icon: '🟡',
+      dot: '#F59E0B',
     },
     Low: {
       bg: isShortage
@@ -64,7 +64,7 @@ const RiskBadge: React.FC<RiskBadgeProps> = ({ risk, type = 'overstock' }) => {
       border: isShortage
         ? (isDark ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.15)')
         : (isDark ? 'rgba(16,185,129,0.4)' : 'rgba(5,150,105,0.3)'),
-      icon: '🟢',
+      dot: isShortage ? '#67E8F9' : '#059669',
     },
   };
 
@@ -72,7 +72,7 @@ const RiskBadge: React.FC<RiskBadgeProps> = ({ risk, type = 'overstock' }) => {
 
   return (
     <Chip
-      label={`${style.icon} ${risk}`}
+      label={risk}
       size="small"
       sx={{
         backgroundColor: style.bg,
@@ -80,10 +80,21 @@ const RiskBadge: React.FC<RiskBadgeProps> = ({ risk, type = 'overstock' }) => {
         border: `1px solid ${style.border}`,
         fontSize: '9px',
         fontWeight: 600,
-        letterSpacing: '0.5px',
+        letterSpacing: 0,
         height: '20px',
         '& .MuiChip-label': {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
           padding: '0 9px',
+          '&::before': {
+            content: '""',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            backgroundColor: style.dot,
+            display: 'inline-block',
+          },
         },
       }}
     />

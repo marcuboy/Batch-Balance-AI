@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Part, FilterState, ERPSystem } from '../types';
 import { DEMO_DATA } from '../utils/dummyData';
+import { defaultFilters } from '../utils/defaultFilters';
 
 interface DataContextType {
   parts: Part[];
@@ -14,24 +15,9 @@ interface DataContextType {
   mrpDate: string;
   setMrpDate: (date: string) => void;
   loadDemoData: () => void;
+  resetData: () => void;
   applyFilters: () => void;
 }
-
-const defaultFilters: FilterState = {
-  site: 'both',
-  horizon: 30,
-  vendor: 'all',
-  risk: 'all',
-  shortageRisk: 'all',
-  partSearch: '',
-  analyst: 'all',
-  atb: null,
-  obs: null,
-  tls: null,
-  packGroup: 'all',
-  viewMode: 'both',
-  sortBy: 'qty',
-};
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -44,6 +30,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loadDemoData = () => {
     setParts(DEMO_DATA);
     setMrpDate(new Date().toISOString().split('T')[0]);
+    setFilters(defaultFilters);
+  };
+
+  const resetData = () => {
+    setParts([]);
+    setMrpDate('');
+    setFilters(defaultFilters);
   };
 
   // Compute filtered parts using useMemo
@@ -57,7 +50,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Vendor filter
     if (filters.vendor !== 'all') {
-      filtered = filtered.filter(p => p.vendor === filters.vendor);
+      filtered = filtered.filter(p => p.vendor === filters.vendor || p.vname === filters.vendor);
     }
 
     // Analyst filter
@@ -75,7 +68,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const search = filters.partSearch.toLowerCase();
       filtered = filtered.filter(p =>
         p.part.toLowerCase().includes(search) ||
-        p.vname.toLowerCase().includes(search)
+        p.vname.toLowerCase().includes(search) ||
+        p.vendor.toLowerCase().includes(search) ||
+        p.site.toLowerCase().includes(search) ||
+        p.analyst.toLowerCase().includes(search)
       );
     }
 
@@ -153,6 +149,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         mrpDate,
         setMrpDate,
         loadDemoData,
+        resetData,
         applyFilters,
       }}
     >
