@@ -14,11 +14,11 @@ import {
   Save, 
   LightMode, 
   DarkMode,
-  Inventory2,
   UploadFile,
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import { exportToExcel } from '../utils/excelExport';
+import stockSenseIcon from '../assets/brand/stocksense-icon.png';
 
 interface HeaderProps {
   activeTab?: string;
@@ -180,20 +180,21 @@ const Header: React.FC<HeaderProps> = ({
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, sm: 1.75 }, minWidth: 0 }}>
           <Box
+            component="img"
+            src={stockSenseIcon}
+            alt="StockSense logo"
             sx={{
-              width: { xs: 38, sm: 42 },
-              height: { xs: 38, sm: 42 },
+              width: { xs: 36, sm: 44 },
+              height: { xs: 36, sm: 44 },
               borderRadius: 2,
-              display: { xs: 'none', sm: 'grid' },
-              placeItems: 'center',
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
+              display: 'block',
+              objectFit: 'cover',
+              bgcolor: 'common.white',
+              border: '1px solid',
+              borderColor: 'divider',
               boxShadow: (theme) => `0 10px 24px ${theme.palette.mode === 'dark' ? 'rgba(0, 151, 136, 0.28)' : 'rgba(0, 104, 95, 0.22)'}`,
             }}
-            aria-hidden="true"
-          >
-            <Inventory2 fontSize="small" />
-          </Box>
+          />
           <Box>
             <Typography
               variant="h4"

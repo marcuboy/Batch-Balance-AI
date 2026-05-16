@@ -3,7 +3,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { getTheme } from './theme';
 import Header from './components/Header';
-import UploadScreen from './components/UploadScreen';
+import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import { DataProvider } from './context/DataContext';
 
@@ -35,7 +35,7 @@ function App() {
             onReset={handleReset}
           />
           {!showDashboard ? (
-            <UploadScreen onAnalyze={() => setShowDashboard(true)} />
+            <LandingPage onAnalyze={() => setShowDashboard(true)} />
           ) : (
             <Dashboard onTabChange={setActiveTab} />
           )}

@@ -474,7 +474,7 @@ export const readExcelFile = (file: File): Promise<unknown[][]> => {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
         resolve(jsonData as unknown[][]);
       } catch (error) {
         reject(error);
