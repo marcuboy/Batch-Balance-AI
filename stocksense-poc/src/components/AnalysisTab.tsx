@@ -441,7 +441,7 @@ export default function AnalysisTab() {
         </Paper>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.35fr 0.65fr' }, gap: 3, mb: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <ChartCard
           title="Space vs Cost Priority Matrix"
           subtitle="Each bubble is a part. X axis is overstock volume, Y axis is overstock value, bubble size is excess quantity."
@@ -450,15 +450,15 @@ export default function AnalysisTab() {
         >
           <Bubble data={bubbleData} options={bubbleOptions} />
         </ChartCard>
+      </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateRows: { xs: 'auto', lg: '1fr 1fr' }, gap: 3 }}>
-          <ChartCard title="Overstock Risk Mix" subtitle="Where cash is tied up fastest." height={{ xs: 260, md: 290 }}>
-            <Doughnut data={riskData} options={doughnutOptions} />
-          </ChartCard>
-          <ChartCard title="Shortage Risk Mix" subtitle="Where production exposure is highest." height={{ xs: 260, md: 290 }}>
-            <Doughnut data={shortageRiskData} options={doughnutOptions} />
-          </ChartCard>
-        </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
+        <ChartCard title="Overstock Risk Mix" subtitle="Where cash is tied up fastest." height={{ xs: 300, md: 360 }}>
+          <Doughnut data={riskData} options={doughnutOptions} />
+        </ChartCard>
+        <ChartCard title="Shortage Risk Mix" subtitle="Where production exposure is highest." height={{ xs: 300, md: 360 }}>
+          <Doughnut data={shortageRiskData} options={doughnutOptions} />
+        </ChartCard>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, mb: 3 }}>

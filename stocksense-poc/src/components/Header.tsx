@@ -37,6 +37,92 @@ const Header: React.FC<HeaderProps> = ({
   const [exporting, setExporting] = useState(false);
   const hasData = parts.length > 0;
 
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const createHtmlSnapshot = () => {
+    const root = document.getElementById('root');
+    if (!root) {
+      throw new Error('Could not find the dashboard root to snapshot.');
+    }
+
+    const clone = root.cloneNode(true) as HTMLElement;
+    const originalCanvases = Array.from(root.querySelectorAll('canvas'));
+    const clonedCanvases = Array.from(clone.querySelectorAll('canvas'));
+
+    clonedCanvases.forEach((canvas, index) => {
+      const source = originalCanvases[index];
+      if (!source) return;
+
+      try {
+        const image = document.createElement('img');
+        image.src = source.toDataURL('image/png');
+        image.alt = source.getAttribute('aria-label') || 'StockSense chart snapshot';
+        image.style.width = `${source.getBoundingClientRect().width}px`;
+        image.style.maxWidth = '100%';
+        image.style.height = 'auto';
+        image.style.display = 'block';
+        canvas.replaceWith(image);
+      } catch {
+        // Keep the canvas if the browser cannot export it.
+      }
+    });
+
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((node) => {
+        if (node instanceof HTMLLinkElement) {
+          return `<link rel="stylesheet" href="${escapeHtml(node.href)}">`;
+        }
+        return node.outerHTML;
+      })
+      .join('\n');
+
+    const capturedAt = new Date().toLocaleString('en-GB', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    const title = `StockSense Snapshot - ${activeTab} - ${mrpDate || 'no-mrp-date'}`;
+
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  ${styles}
+  <style>
+    body { margin: 0; background: ${themeMode === 'dark' ? '#0B1512' : '#F6FAF8'}; }
+    .stocksense-snapshot-banner {
+      box-sizing: border-box;
+      padding: 14px 24px;
+      font: 600 13px/1.4 Inter, Roboto, Arial, sans-serif;
+      color: ${themeMode === 'dark' ? '#D7ECE8' : '#31534D'};
+      background: ${themeMode === 'dark' ? '#10221E' : '#EAF4F1'};
+      border-bottom: 1px solid ${themeMode === 'dark' ? '#264B45' : '#D4E4DF'};
+    }
+    .stocksense-snapshot-banner strong { color: ${themeMode === 'dark' ? '#FFFFFF' : '#15231F'}; }
+    button, [role="button"], input, select, textarea { pointer-events: none !important; }
+    canvas, img { max-width: 100%; }
+    @media print {
+      .stocksense-snapshot-banner { position: static; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stocksense-snapshot-banner">
+    <strong>StockSense HTML Snapshot</strong> · ${escapeHtml(activeTab)} · MRP ${escapeHtml(mrpDate || 'n/a')} · Captured ${escapeHtml(capturedAt)}
+  </div>
+  ${clone.outerHTML}
+</body>
+</html>`;
+  };
+
   const handleExport = async () => {
     if (parts.length === 0) return;
     
@@ -54,21 +140,12 @@ const Header: React.FC<HeaderProps> = ({
   const handleSnapshot = () => {
     if (!hasData) return;
 
-    // Create a snapshot of the current state
-    const snapshot = {
-      parts,
-      filters,
-      mrpDate,
-      timestamp: new Date().toISOString(),
-    };
-    
-    // Convert to JSON and create a downloadable file
-    const dataStr = JSON.stringify(snapshot, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const html = createHtmlSnapshot();
+    const dataBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `StockSense_Snapshot_${mrpDate}_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `StockSense_Snapshot_${activeTab}_${mrpDate}_${new Date().toISOString().split('T')[0]}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

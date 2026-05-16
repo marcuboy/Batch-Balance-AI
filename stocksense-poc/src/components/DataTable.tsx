@@ -115,10 +115,87 @@ export default function DataTable({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.5 }}>
+        {paginatedParts.map((part, idx) => {
+          const primaryColumn = columns[0];
+          const detailColumns = columns.slice(1);
+
+          return (
+            <Paper
+              key={`mobile-${part.site}-${part.part}-${safePage}-${idx}`}
+              variant="outlined"
+              sx={{
+                p: 1.75,
+                borderRadius: 2,
+                bgcolor: 'background.paper',
+                boxShadow: theme.palette.mode === 'dark' ? 'none' : '0 8px 24px rgba(15, 23, 42, 0.04)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 1.5 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  {primaryColumn.render
+                    ? primaryColumn.render(part)
+                    : String((part as unknown as Record<string, unknown>)[primaryColumn.key] || '')}
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: 1,
+                }}
+              >
+                {detailColumns.map((col) => (
+                  <Box
+                    key={`${col.key}-${part.site}-${part.part}`}
+                    sx={{
+                      p: 1,
+                      borderRadius: 1.5,
+                      bgcolor: 'background.default',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      minWidth: 0,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: 'text.secondary',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        mb: 0.35,
+                      }}
+                    >
+                      {col.label}
+                    </Typography>
+                    <Box
+                      sx={{
+                        color: 'text.primary',
+                        fontSize: '0.86rem',
+                        fontWeight: col.align === 'right' ? 800 : 600,
+                        fontVariantNumeric: 'tabular-nums',
+                        wordBreak: 'break-word',
+                        '& .MuiChip-root': { mr: 0.5, mb: 0.5 },
+                      }}
+                    >
+                      {col.render
+                        ? col.render(part)
+                        : String((part as unknown as Record<string, unknown>)[col.key] || '—')}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+          );
+        })}
+      </Box>
+
       <TableContainer
         component={Paper}
         variant="outlined"
         sx={{
+          display: { xs: 'none', md: 'block' },
           overflowX: 'auto',
           borderRadius: 2,
           '& table': {

@@ -4,6 +4,7 @@ import { Inventory, Inventory2 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import DataTable from './DataTable';
 import type { Column } from './DataTable';
+import PartThumbnail from './PartThumbnail';
 import { columnRenderers } from '../utils/columnRenderers';
 import { fmt, fmtGBP, fmtVol } from '../utils/formatters';
 import type { Part } from '../types';
@@ -19,7 +20,11 @@ export default function AllPartsTab() {
     const demandKey = `d${filters.horizon}` as keyof Part;
 
     return [
-      { key: 'part', label: 'Part number' },
+      {
+        key: 'part',
+        label: 'Item',
+        render: (p) => <PartThumbnail part={p} showLabel />,
+      },
       { key: 'site', label: 'Site' },
       { key: 'vendor', label: 'Vendor' },
       { key: 'vname', label: 'Vendor name' },

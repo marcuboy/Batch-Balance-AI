@@ -4,6 +4,7 @@ import { CheckCircle, SearchOff, WarningAmber } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import DataTable from './DataTable';
 import type { Column } from './DataTable';
+import PartThumbnail from './PartThumbnail';
 import { columnRenderers } from '../utils/columnRenderers';
 import { fmt, fmtGBP } from '../utils/formatters';
 import type { Part } from '../types';
@@ -17,7 +18,11 @@ export default function NotOnMRPTab() {
 
   const columns = useMemo<Column[]>(
     () => [
-      { key: 'part', label: 'Part number' },
+      {
+        key: 'part',
+        label: 'Item',
+        render: (p: Part) => <PartThumbnail part={p} showLabel />,
+      },
       { key: 'site', label: 'Site' },
       { key: 'vendor', label: 'Vendor' },
       { key: 'vname', label: 'Vendor name' },

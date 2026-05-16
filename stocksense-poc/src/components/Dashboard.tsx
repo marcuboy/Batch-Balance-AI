@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Button, Chip, Container, Paper, Tabs, Tab, Typography } from '@mui/material';
+import { Box, Chip, Container, Tabs, Tab, Typography } from '@mui/material';
 import {
   Star,
   TrendingUp,
@@ -7,7 +7,6 @@ import {
   Warning,
   ViewList,
   SearchOff,
-  AutoAwesome,
 } from '@mui/icons-material';
 import { useData } from '../context/DataContext';
 import KPICard from './KPICard';
@@ -56,11 +55,6 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
     }
   };
 
-  const handleModuleSelect = (newValue: number) => {
-    setActiveTab(newValue);
-    onTabChange?.(tabNames[newValue]);
-  };
-
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-GB').format(Math.round(num));
   };
@@ -73,15 +67,6 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
       maximumFractionDigits: 0,
     }).format(num);
   };
-
-  const moduleFilters = [
-    { label: 'All', tab: 0, accent: 'primary.main' },
-    { label: 'Analysis', tab: 1, accent: 'secondary.main' },
-    { label: 'Overstock', tab: 2, accent: 'error.main' },
-    { label: 'Understock', tab: 3, accent: 'info.main' },
-    { label: 'Inventory', tab: 4, accent: 'success.main' },
-    { label: 'MRP gaps', tab: 5, accent: 'warning.main' },
-  ];
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: 'calc(100vh - 80px)' }}>
@@ -127,50 +112,6 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
       <FilterDrawer isOpen={filtersOpen} />
 
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
-        <Paper
-          variant="outlined"
-          sx={{
-            mt: { xs: 2, md: 3 },
-            p: { xs: 1, sm: 1.25 },
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            overflowX: 'auto',
-            background: (theme) =>
-              theme.palette.mode === 'dark'
-                ? 'linear-gradient(135deg, rgba(0, 122, 114, 0.18), rgba(49, 87, 213, 0.10))'
-                : 'linear-gradient(135deg, rgba(0, 122, 114, 0.08), rgba(49, 87, 213, 0.06))',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, color: 'text.secondary', flex: '0 0 auto' }}>
-            <AutoAwesome sx={{ fontSize: 18, color: 'primary.main' }} />
-            <Typography sx={{ fontWeight: 800, fontSize: '0.8rem' }}>Module</Typography>
-          </Box>
-          {moduleFilters.map((item) => {
-            const selected = activeTab === item.tab;
-            return (
-              <Button
-                key={item.label}
-                onClick={() => handleModuleSelect(item.tab)}
-                variant={selected ? 'contained' : 'text'}
-                size="small"
-                sx={{
-                  flex: '0 0 auto',
-                  px: 1.75,
-                  py: 0.9,
-                  color: selected ? 'primary.contrastText' : 'text.primary',
-                  bgcolor: selected ? item.accent : 'transparent',
-                  '&:hover': {
-                    bgcolor: selected ? item.accent : 'action.hover',
-                  },
-                }}
-              >
-                {item.label}
-              </Button>
-            );
-          })}
-        </Paper>
-
         <TabPanel value={activeTab} index={0}>
           <Box
             sx={{
