@@ -108,26 +108,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       filtered = filtered.filter(p => (p[underKey] as number) > 0);
     }
 
-    // Sort
-    if (filters.sortBy === 'qty') {
-      if (filters.viewMode === 'understock') {
-        filtered.sort((a, b) => (b[underKey] as number) - (a[underKey] as number));
-      } else {
-        filtered.sort((a, b) => (b[overKey] as number) - (a[overKey] as number));
-      }
-    } else if (filters.sortBy === 'volume') {
-      const volKey = `ov${horizon}` as keyof Part;
-      filtered.sort((a, b) => (b[volKey] as number) - (a[volKey] as number));
-    } else if (filters.sortBy === 'value') {
-      if (filters.viewMode === 'understock') {
-        const valKey = `shortageVal${horizon}` as keyof Part;
-        filtered.sort((a, b) => (b[valKey] as number) - (a[valKey] as number));
-      } else {
-        const valKey = `osVal${horizon}` as keyof Part;
-        filtered.sort((a, b) => (b[valKey] as number) - (a[valKey] as number));
-      }
-    }
-
     return filtered;
   }, [parts, filters]);
 

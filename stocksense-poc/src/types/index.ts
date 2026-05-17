@@ -80,7 +80,6 @@ export interface FilterState {
   tls: boolean | null;
   packGroup: string;
   viewMode: ViewMode;
-  sortBy: 'qty' | 'volume' | 'value';
 }
 
 export interface KPIData {

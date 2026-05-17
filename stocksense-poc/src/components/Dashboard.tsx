@@ -21,6 +21,7 @@ import QuickInsights from './QuickInsights';
 import InventoryOverviewChart from './InventoryOverviewChart';
 import TopIssues from './TopIssues';
 import { fmtVol } from '../utils/formatters';
+import type { ViewMode } from '../types';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -37,11 +38,19 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
 };
 
 const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabChange }) => {
-  const { parts, filteredParts, filters } = useData();
+  const { parts, filteredParts, filters, setFilters } = useData();
   const [activeTab, setActiveTab] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   
   const tabNames = ['overview', 'analysis', 'overstock', 'understock', 'all-parts', 'not-on-mrp'];
+  const tabViewModes: Record<number, ViewMode> = {
+    0: 'both',
+    1: 'both',
+    2: 'overstock',
+    3: 'understock',
+    4: 'both',
+    5: 'both',
+  };
   
   // Calculate KPIs using useMemo to avoid unnecessary recalculations
   const kpis = useMemo(() => {
@@ -50,6 +59,7 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+    setFilters({ ...filters, viewMode: tabViewModes[newValue] ?? 'both' });
     if (onTabChange) {
       onTabChange(tabNames[newValue]);
     }

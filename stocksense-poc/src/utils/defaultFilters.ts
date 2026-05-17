@@ -13,7 +13,6 @@ export const defaultFilters: FilterState = {
   tls: null,
   packGroup: 'all',
   viewMode: 'both',
-  sortBy: 'qty',
 };
 
 // Made with Bob

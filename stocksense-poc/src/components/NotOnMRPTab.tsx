@@ -10,11 +10,12 @@ import { fmt, fmtGBP } from '../utils/formatters';
 import type { Part } from '../types';
 
 export default function NotOnMRPTab() {
-  const { filteredParts } = useData();
+  const { parts, filteredParts } = useData();
 
   const notOnMRPParts = useMemo(() => {
-    return filteredParts.filter((p) => p.d30 === 0 && p.d60 === 0 && p.d90 === 0 && p.d120 === 0);
-  }, [filteredParts]);
+    const baseParts = parts.length > 0 ? parts : filteredParts;
+    return baseParts.filter((p) => p.d30 === 0 && p.d60 === 0 && p.d90 === 0 && p.d120 === 0);
+  }, [parts, filteredParts]);
 
   const columns = useMemo<Column[]>(
     () => [

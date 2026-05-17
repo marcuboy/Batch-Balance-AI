@@ -62,10 +62,9 @@ const shortageColors: Record<string, string> = {
 const getNumeric = (part: Part, key: string) => Number((part as unknown as Record<string, number>)[key] || 0);
 
 export default function AnalysisTab() {
-  const { filteredParts, filters } = useData();
+  const { parts, filteredParts, filters } = useData();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const parts = filteredParts;
   const horizon = filters.horizon;
 
   const axisColor = theme.palette.text.secondary;
@@ -78,33 +77,49 @@ export default function AnalysisTab() {
     const shortageValueKey = `shortageVal${horizon}`;
     const volumeKey = `ov${horizon}`;
 
-    const overstocked = parts.filter((p) => getNumeric(p, overKey) > 0);
-    const understocked = parts.filter((p) => getNumeric(p, underKey) > 0);
-    const cashLocked = parts.reduce((sum, p) => sum + getNumeric(p, valueKey), 0);
-    const shortageExposure = parts.reduce((sum, p) => sum + getNumeric(p, shortageValueKey), 0);
-    const spaceRecovery = parts.reduce((sum, p) => sum + getNumeric(p, volumeKey), 0);
+    const overstocked = filteredParts.filter((p) => getNumeric(p, overKey) > 0);
+    const understocked = filteredParts.filter((p) => getNumeric(p, underKey) > 0);
+    const cashLocked = filteredParts.reduce((sum, p) => sum + getNumeric(p, valueKey), 0);
+    const shortageExposure = filteredParts.reduce((sum, p) => sum + getNumeric(p, shortageValueKey), 0);
+    const spaceRecovery = filteredParts.reduce((sum, p) => sum + getNumeric(p, volumeKey), 0);
 
     return { overstocked, understocked, cashLocked, shortageExposure, spaceRecovery };
-  }, [horizon, parts]);
+  }, [filteredParts, horizon]);
 
   const vendorOverstockData = useMemo<ChartData<'bar'>>(() => {
     const overKey = `over${horizon}`;
-    const vendorMap = new Map<string, number>();
+    const underKey = `under${horizon}`;
+    const vendorMap = new Map<string, { overstock: number; shortage: number }>();
 
     parts.forEach((part) => {
-      const qty = getNumeric(part, overKey);
-      if (qty > 0) vendorMap.set(part.vname, (vendorMap.get(part.vname) || 0) + qty);
+      const vendor = part.vname || part.vendor || 'Unassigned';
+      const current = vendorMap.get(vendor) || { overstock: 0, shortage: 0 };
+      const overstock = getNumeric(part, overKey);
+      const shortage = getNumeric(part, underKey);
+      if (overstock > 0) current.overstock += overstock;
+      if (shortage > 0) current.shortage += shortage;
+      if (current.overstock > 0 || current.shortage > 0) vendorMap.set(vendor, current);
     });
 
-    const sorted = Array.from(vendorMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const sorted = Array.from(vendorMap.entries())
+      .sort((a, b) => b[1].overstock + b[1].shortage - (a[1].overstock + a[1].shortage))
+      .slice(0, 8);
     return {
       labels: sorted.map(([vendor]) => vendor),
       datasets: [
         {
-          label: 'Overstock units',
-          data: sorted.map(([, qty]) => qty),
-          backgroundColor: 'rgba(239, 68, 68, 0.72)',
+          label: 'Overstock Units',
+          data: sorted.map(([, values]) => values.overstock),
+          backgroundColor: 'rgba(239, 68, 68, 0.74)',
           borderColor: '#EF4444',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: 'Shortage Units',
+          data: sorted.map(([, values]) => values.shortage),
+          backgroundColor: 'rgba(2, 132, 199, 0.74)',
+          borderColor: '#0284C7',
           borderWidth: 1,
           borderRadius: 6,
         },
@@ -113,23 +128,40 @@ export default function AnalysisTab() {
   }, [horizon, parts]);
 
   const analystExposureData = useMemo<ChartData<'bar'>>(() => {
+    const overKey = `over${horizon}`;
+    const underKey = `under${horizon}`;
     const valueKey = `osVal${horizon}`;
-    const analystMap = new Map<string, number>();
+    const shortageValueKey = `shortageVal${horizon}`;
+    const analystMap = new Map<string, { overstock: number; shortage: number }>();
 
     parts.forEach((part) => {
-      const value = getNumeric(part, valueKey);
-      if (value > 0) analystMap.set(part.analyst || 'Unassigned', (analystMap.get(part.analyst || 'Unassigned') || 0) + value);
+      const analyst = part.analyst || 'Unassigned';
+      const current = analystMap.get(analyst) || { overstock: 0, shortage: 0 };
+      if (getNumeric(part, overKey) > 0) current.overstock += getNumeric(part, valueKey);
+      if (getNumeric(part, underKey) > 0) current.shortage += getNumeric(part, shortageValueKey);
+      if (current.overstock > 0 || current.shortage > 0) analystMap.set(analyst, current);
     });
 
-    const sorted = Array.from(analystMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const sorted = Array.from(analystMap.entries())
+      .sort((a, b) => b[1].overstock + b[1].shortage - (a[1].overstock + a[1].shortage))
+      .slice(0, 8);
     return {
       labels: sorted.map(([analyst]) => analyst),
       datasets: [
         {
-          label: 'Overstock value',
-          data: sorted.map(([, value]) => value),
-          backgroundColor: sorted.map((_, index) => ['#007A72', '#0284C7', '#F59E0B', '#EF4444', '#7C3AED'][index % 5]),
-          borderWidth: 0,
+          label: 'Overstock Value (£)',
+          data: sorted.map(([, values]) => values.overstock),
+          backgroundColor: 'rgba(239, 68, 68, 0.74)',
+          borderColor: '#EF4444',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: 'Shortage Value at Risk (£)',
+          data: sorted.map(([, values]) => values.shortage),
+          backgroundColor: 'rgba(2, 132, 199, 0.74)',
+          borderColor: '#0284C7',
+          borderWidth: 1,
           borderRadius: 6,
         },
       ],
@@ -178,50 +210,86 @@ export default function AnalysisTab() {
 
   const bubbleData = useMemo<ChartData<'bubble'>>(() => {
     const overKey = `over${horizon}`;
-    const valueKey = `osVal${horizon}`;
-    const volumeKey = `ov${horizon}`;
-    const points = parts
-      .filter((part) => getNumeric(part, overKey) > 0)
-      .sort((a, b) => getNumeric(b, valueKey) - getNumeric(a, valueKey))
-      .slice(0, 70);
+    const underKey = `under${horizon}`;
+    const overValueKey = `osVal${horizon}`;
+    const shortageValueKey = `shortageVal${horizon}`;
+    const overVolumeKey = `ov${horizon}`;
+    const shortageVolumeKey = `uv${horizon}`;
+    const bubbleRadius = (qty: number) => Math.min(22, Math.max(5, Math.sqrt(qty) / 4));
 
     return {
-      datasets: riskLevels
-        .filter((risk) => risk !== 'None')
-        .map((risk) => ({
-          label: risk,
-          data: points
-            .filter((part) => part.risk === risk)
-            .map((part) => ({
-              x: getNumeric(part, volumeKey),
-              y: getNumeric(part, valueKey),
-              r: Math.min(22, Math.max(5, Math.sqrt(getNumeric(part, overKey)) / 4)),
-              part: part.part,
-              qty: getNumeric(part, overKey),
-              vendor: part.vname,
-            })),
-          backgroundColor: `${riskColors[risk]}B3`,
-          borderColor: riskColors[risk],
-          borderWidth: 1,
-        })),
+      datasets: [
+        ...riskLevels
+          .filter((risk) => risk !== 'None')
+          .map((risk) => ({
+            label: `OS: ${risk}`,
+            data: parts
+              .filter((part) => part.risk === risk && getNumeric(part, overKey) > 0)
+              .map((part) => ({
+                x: getNumeric(part, overVolumeKey),
+                y: getNumeric(part, overValueKey),
+                r: bubbleRadius(getNumeric(part, overKey)),
+                part: part.part,
+                qty: getNumeric(part, overKey),
+                vendor: part.vname,
+              })),
+            backgroundColor: `${riskColors[risk]}B3`,
+            borderColor: riskColors[risk],
+            borderWidth: 1,
+          })),
+        ...riskLevels
+          .filter((risk) => risk !== 'None')
+          .map((risk) => ({
+            label: `US: ${risk}`,
+            data: parts
+              .filter((part) => part.shortageRisk === risk && getNumeric(part, underKey) > 0)
+              .map((part) => ({
+                x: getNumeric(part, shortageVolumeKey),
+                y: getNumeric(part, shortageValueKey),
+                r: bubbleRadius(getNumeric(part, underKey)),
+                part: part.part,
+                qty: getNumeric(part, underKey),
+                vendor: part.vname,
+              })),
+            backgroundColor: `${shortageColors[risk]}B3`,
+            borderColor: shortageColors[risk],
+            borderWidth: 1,
+          })),
+      ],
     };
   }, [horizon, parts]);
 
   const topVolumeData = useMemo<ChartData<'bar'>>(() => {
-    const volumeKey = `ov${horizon}`;
+    const overKey = `over${horizon}`;
+    const underKey = `under${horizon}`;
+    const overVolumeKey = `ov${horizon}`;
+    const shortageVolumeKey = `uv${horizon}`;
     const sorted = parts
-      .filter((part) => getNumeric(part, volumeKey) > 0)
-      .sort((a, b) => getNumeric(b, volumeKey) - getNumeric(a, volumeKey))
+      .map((part) => ({
+        part,
+        overVolume: getNumeric(part, overKey) > 0 ? getNumeric(part, overVolumeKey) : 0,
+        shortageVolume: getNumeric(part, underKey) > 0 ? getNumeric(part, shortageVolumeKey) : 0,
+      }))
+      .filter(({ overVolume, shortageVolume }) => overVolume + shortageVolume > 0)
+      .sort((a, b) => b.overVolume + b.shortageVolume - (a.overVolume + a.shortageVolume))
       .slice(0, 10);
 
     return {
-      labels: sorted.map((part) => part.part),
+      labels: sorted.map(({ part }) => part.part),
       datasets: [
         {
-          label: 'Overstock volume',
-          data: sorted.map((part) => getNumeric(part, volumeKey)),
-          backgroundColor: 'rgba(6, 182, 212, 0.72)',
-          borderColor: '#06B6D4',
+          label: 'Overstock Volume (m³)',
+          data: sorted.map(({ overVolume }) => overVolume),
+          backgroundColor: 'rgba(239, 68, 68, 0.74)',
+          borderColor: '#EF4444',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: 'Shortage Volume (m³)',
+          data: sorted.map(({ shortageVolume }) => shortageVolume),
+          backgroundColor: 'rgba(2, 132, 199, 0.74)',
+          borderColor: '#0284C7',
           borderWidth: 1,
           borderRadius: 6,
         },
@@ -343,12 +411,12 @@ export default function AnalysisTab() {
     },
     scales: {
       x: {
-        title: { display: true, text: 'Overstock volume', color: axisColor },
+        title: { display: true, text: 'Volume impact (m³)', color: axisColor },
         ticks: { color: axisColor, callback: (value) => fmtVol(Number(value)).replace(' m³', '') },
         grid: { color: gridColor },
       },
       y: {
-        title: { display: true, text: 'Overstock value', color: axisColor },
+        title: { display: true, text: 'Value impact (£)', color: axisColor },
         ticks: { color: axisColor, callback: (value) => fmtGBP(Number(value)) },
         grid: { color: gridColor },
       },
@@ -397,7 +465,7 @@ export default function AnalysisTab() {
             Analysis Command Center
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-            Prioritize cash, space, and production risk across {parts.length.toLocaleString('en-GB')} visible parts.
+            Prioritize cash, space, and production risk across {parts.length.toLocaleString('en-GB')} uploaded parts.
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -444,7 +512,7 @@ export default function AnalysisTab() {
       <Box sx={{ mb: 3 }}>
         <ChartCard
           title="Space vs Cost Priority Matrix"
-          subtitle="Each bubble is a part. X axis is overstock volume, Y axis is overstock value, bubble size is excess quantity."
+          subtitle="Red bubbles = overstock. Blue bubbles = understock. X axis = volume (m³), Y axis = value (£), size = quantity."
           height={{ xs: 360, md: 430 }}
           action={<BubbleChart sx={{ color: 'primary.main' }} />}
         >
@@ -453,25 +521,25 @@ export default function AnalysisTab() {
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
-        <ChartCard title="Overstock Risk Mix" subtitle="Where cash is tied up fastest." height={{ xs: 300, md: 360 }}>
+        <ChartCard title="Overstock Risk Distribution" subtitle="Where cash is tied up fastest." height={{ xs: 300, md: 360 }}>
           <Doughnut data={riskData} options={doughnutOptions} />
         </ChartCard>
-        <ChartCard title="Shortage Risk Mix" subtitle="Where production exposure is highest." height={{ xs: 300, md: 360 }}>
+        <ChartCard title="Shortage Risk Distribution" subtitle="Where production exposure is highest." height={{ xs: 300, md: 360 }}>
           <Doughnut data={shortageRiskData} options={doughnutOptions} />
         </ChartCard>
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, mb: 3 }}>
         <ChartCard
-          title="Overstock Exposure by Analyst"
-          subtitle="Value of excess stock owned by each planning queue."
+          title="Inventory Exposure by Analyst"
+          subtitle="Overstock value vs shortage value at risk per planning analyst"
           action={<StackedBarChart sx={{ color: 'secondary.main' }} />}
         >
           <Bar data={analystExposureData} options={valueBarOptions} />
         </ChartCard>
         <ChartCard
-          title="Top Vendors by Overstock Units"
-          subtitle={`Largest suppliers by ${horizon}-day excess quantity.`}
+          title="Top Vendors by Inventory Imbalance"
+          subtitle={`Overstock and shortage units by supplier at ${horizon}-day horizon`}
         >
           <Bar data={vendorOverstockData} options={barOptions} />
         </ChartCard>
@@ -479,8 +547,8 @@ export default function AnalysisTab() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
         <ChartCard
-          title="Top Parts by Overstock Volume"
-          subtitle="Best candidates for warehouse space recovery."
+          title="Top Parts by Volume Impact"
+          subtitle="Parts with highest warehouse space at risk from overstock or shortage"
         >
           <Bar data={topVolumeData} options={verticalVolumeOptions} />
         </ChartCard>

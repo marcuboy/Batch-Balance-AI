@@ -41,7 +41,6 @@ const getActiveFilterCount = (filters: ReturnType<typeof useData>['filters']) =>
     filters.obs !== defaultFilters.obs,
     filters.tls !== defaultFilters.tls,
     filters.packGroup !== defaultFilters.packGroup,
-    filters.sortBy !== defaultFilters.sortBy,
   ].filter(Boolean).length;
 
 export function FilterButton({ isOpen, onToggle }: FilterDrawerProps) {
@@ -316,20 +315,6 @@ export default function FilterDrawer({ isOpen }: { isOpen: boolean }) {
             <MenuItem value="all">Any TLS</MenuItem>
             <MenuItem value="true">TLS only</MenuItem>
             <MenuItem value="false">Non-TLS</MenuItem>
-          </Select>
-        </FormControl>
-
-        <FormControl size="small">
-          <InputLabel>Sort</InputLabel>
-          <Select
-            value={filters.sortBy}
-            label="Sort"
-            onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as 'qty' | 'volume' | 'value' })}
-            sx={selectSx(filters.sortBy !== defaultFilters.sortBy)}
-          >
-            <MenuItem value="qty">Quantity</MenuItem>
-            <MenuItem value="volume">Volume</MenuItem>
-            <MenuItem value="value">Value</MenuItem>
           </Select>
         </FormControl>
 
