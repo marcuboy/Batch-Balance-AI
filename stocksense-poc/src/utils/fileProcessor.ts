@@ -239,12 +239,22 @@ export const processFiles = async (
   }
 
   // Process Stock data - find columns by header name
+  interface StockData {
+    site: string;
+    item: string;
+    description: string;
+    warehouse: string;
+    planner: string;
+  }
   const stockMap = new Map<string, number>();
+  const stockDetailsMap = new Map<string, StockData>();
   if (stock && stock.length > 0) {
     const stockHeaderMap = createHeaderMap(stock[0]);
     const whCol = requireColumnIndex(stockHeaderMap, erpMap.stkWarehouse, 'Stock');
     const itemCol = requireColumnIndex(stockHeaderMap, erpMap.stkItem, 'Stock');
     const sohCol = requireColumnIndex(stockHeaderMap, erpMap.stkSoh, 'Stock');
+    const descriptionCol = findColumnIndex(stockHeaderMap, ['Description', 'Part Description', 'Item Description', 'Product Name']);
+    const plannerCol = findColumnIndex(stockHeaderMap, ['Planner', 'Analyst', 'MRP Controller', 'Buyer']);
 
     for (let i = 1; i < stock.length; i++) {
       const row = stock[i];
@@ -253,10 +263,16 @@ export const processFiles = async (
 
       const item = row[itemCol]?.toString().trim() || '';
       const soh = parseFloat(String(row[sohCol] ?? '')) || 0;
+      const warehouse = row[whCol]?.toString().trim() || site;
+      const description = descriptionCol >= 0 ? row[descriptionCol]?.toString().trim() || '' : '';
+      const planner = plannerCol >= 0 ? row[plannerCol]?.toString().trim() || '' : '';
       if (!item) continue;
 
       const key = `${site}-${item}`;
       stockMap.set(key, (stockMap.get(key) || 0) + soh);
+      if (!stockDetailsMap.has(key)) {
+        stockDetailsMap.set(key, { site, item, description, warehouse, planner });
+      }
     }
   }
 
@@ -330,41 +346,71 @@ export const processFiles = async (
     price: number;
     atb: boolean;
     obs: boolean;
+    vendor?: string;
+    description?: string;
     imageUrl?: string;
   }
   const pricesMap = new Map<string, PricesData>();
   if (prices && prices.length > 0) {
     const priceHeaderMap = createHeaderMap(prices[0]);
+    const descriptionCol = findColumnIndex(priceHeaderMap, ['Description', 'Part Description', 'Item Description', 'Product Name']);
+    const vendorCol = findColumnIndex(priceHeaderMap, ['Vendor', 'Supplier', 'Vendor Name', 'Supplier Name']);
     const imageCol = findColumnIndex(priceHeaderMap, ['image', 'image_url', 'image url', 'photo', 'photo_url', 'product_image']);
     for (let i = 1; i < prices.length; i++) {
       const row = prices[i];
-      const part = row[0]?.toString() || '';
+      const part = row[0]?.toString().trim() || '';
+      if (!part) continue;
       const price = parseFloat(String(row[2] ?? '')) || 0;
       const atb = row[3]?.toString().toLowerCase() === 'yes';
       const obs = row[4]?.toString().toLowerCase() === 'yes';
+      const vendor = vendorCol >= 0 ? row[vendorCol]?.toString().trim() || undefined : undefined;
+      const description = descriptionCol >= 0 ? row[descriptionCol]?.toString().trim() || undefined : undefined;
       const imageUrl = imageCol >= 0 ? row[imageCol]?.toString().trim() || undefined : undefined;
 
-      pricesMap.set(part, { price, atb, obs, imageUrl });
+      pricesMap.set(part, { price, atb, obs, vendor, description, imageUrl });
     }
   }
 
   // Combine all data
-  mrpMap.forEach((mrpData, key) => {
-    const soh = stockMap.get(key) || 0;
-    const packaging = packagingMap.get(mrpData.part) || { pkgItem: '', qtyPerBox: 1, packGroup: 'Unknown' };
+  const buildPart = ({
+    part: partNumber,
+    site,
+    vendor,
+    vname,
+    analyst,
+    imageUrl,
+    soh,
+    d30,
+    d60,
+    d90,
+    d120,
+  }: {
+    part: string;
+    site: string;
+    vendor: string;
+    vname: string;
+    analyst: string;
+    imageUrl?: string;
+    soh: number;
+    d30: number;
+    d60: number;
+    d90: number;
+    d120: number;
+  }): Part => {
+    const packaging = packagingMap.get(partNumber) || { pkgItem: '', qtyPerBox: 1, packGroup: 'Unknown' };
     const dims = dimensionsMap.get(packaging.pkgItem) || { length: 0, width: 0, height: 0, volumeM3: 0 };
-    const priceData = pricesMap.get(mrpData.part) || { price: 0, atb: false, obs: false };
+    const priceData = pricesMap.get(partNumber) || { price: 0, atb: false, obs: false };
 
     // Calculate overstock/understock
-    const over30 = soh - mrpData.d30;
-    const over60 = soh - mrpData.d60;
-    const over90 = soh - mrpData.d90;
-    const over120 = soh - mrpData.d120;
+    const over30 = soh - d30;
+    const over60 = soh - d60;
+    const over90 = soh - d90;
+    const over120 = soh - d120;
 
-    const under30 = Math.max(0, mrpData.d30 - soh);
-    const under60 = Math.max(0, mrpData.d60 - soh);
-    const under90 = Math.max(0, mrpData.d90 - soh);
-    const under120 = Math.max(0, mrpData.d120 - soh);
+    const under30 = Math.max(0, d30 - soh);
+    const under60 = Math.max(0, d60 - soh);
+    const under90 = Math.max(0, d90 - soh);
+    const under120 = Math.max(0, d120 - soh);
 
     // Calculate risk
     let risk: Part['risk'] = 'None';
@@ -377,9 +423,9 @@ export const processFiles = async (
 
     let shortageRisk: Part['shortageRisk'] = 'None';
     if (under30 > 0) {
-      if (under30 > mrpData.d30 * 0.5) shortageRisk = 'Critical';
-      else if (under30 > mrpData.d30 * 0.25) shortageRisk = 'High';
-      else if (under30 > mrpData.d30 * 0.10) shortageRisk = 'Medium';
+      if (under30 > d30 * 0.5) shortageRisk = 'Critical';
+      else if (under30 > d30 * 0.25) shortageRisk = 'High';
+      else if (under30 > d30 * 0.10) shortageRisk = 'Medium';
       else shortageRisk = 'Low';
     }
 
@@ -406,19 +452,19 @@ export const processFiles = async (
     const shortageVal120 = under120 > 0 ? under120 * priceData.price : 0;
 
     const part: Part = {
-      part: mrpData.part,
-      site: mrpData.site,
-      vendor: mrpData.vendor,
-      vname: mrpData.vname,
-      analyst: mrpData.analyst,
-      imageUrl: priceData.imageUrl || mrpData.imageUrl,
+      part: partNumber,
+      site,
+      vendor,
+      vname,
+      analyst,
+      imageUrl: priceData.imageUrl || imageUrl,
       soh,
       packGroup: packaging.packGroup,
-      isTLS: mrpData.vname.toLowerCase().includes('tls') || mrpData.vname.toLowerCase().includes('kit'),
-      d30: mrpData.d30,
-      d60: mrpData.d60,
-      d90: mrpData.d90,
-      d120: mrpData.d120,
+      isTLS: `${vname} ${partNumber}`.toLowerCase().includes('tls') || `${vname} ${partNumber}`.toLowerCase().includes('kit'),
+      d30,
+      d60,
+      d90,
+      d120,
       over30,
       over60,
       over90,
@@ -452,7 +498,48 @@ export const processFiles = async (
       shortageVal120,
     };
 
-    allParts.push(part);
+    return part;
+  };
+
+  mrpMap.forEach((mrpData, key) => {
+    allParts.push(buildPart({
+      part: mrpData.part,
+      site: mrpData.site,
+      vendor: mrpData.vendor,
+      vname: mrpData.vname,
+      analyst: mrpData.analyst,
+      imageUrl: mrpData.imageUrl,
+      soh: stockMap.get(key) || 0,
+      d30: mrpData.d30,
+      d60: mrpData.d60,
+      d90: mrpData.d90,
+      d120: mrpData.d120,
+    }));
+  });
+
+  stockMap.forEach((soh, key) => {
+    if (mrpMap.has(key) || soh <= 0) return;
+
+    const stockData = stockDetailsMap.get(key);
+    if (!stockData) return;
+
+    const priceData = pricesMap.get(stockData.item);
+    const vendor = priceData?.vendor || stockData.warehouse || 'Stock only';
+    const vname = priceData?.vendor || stockData.description || priceData?.description || 'Stock not on MRP';
+
+    allParts.push(buildPart({
+      part: stockData.item,
+      site: stockData.site,
+      vendor,
+      vname,
+      analyst: stockData.planner || 'Unassigned',
+      imageUrl: priceData?.imageUrl,
+      soh,
+      d30: 0,
+      d60: 0,
+      d90: 0,
+      d120: 0,
+    }));
   });
 
   if (allParts.length === 0) {

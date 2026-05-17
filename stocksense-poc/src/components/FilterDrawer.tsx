@@ -33,8 +33,8 @@ const getActiveFilterCount = (filters: ReturnType<typeof useData>['filters']) =>
     filters.site !== defaultFilters.site,
     filters.horizon !== defaultFilters.horizon,
     filters.vendor !== defaultFilters.vendor,
-    filters.risk !== defaultFilters.risk,
-    filters.shortageRisk !== defaultFilters.shortageRisk,
+    filters.viewMode !== 'understock' && filters.risk !== defaultFilters.risk,
+    filters.viewMode !== 'overstock' && filters.shortageRisk !== defaultFilters.shortageRisk,
     filters.analyst !== defaultFilters.analyst,
     filters.partSearch,
     filters.atb !== defaultFilters.atb,
@@ -92,9 +92,11 @@ export default function FilterDrawer({ isOpen }: { isOpen: boolean }) {
   const analysts = Array.from(new Set(parts.map((p) => p.analyst).filter(Boolean))).sort();
   const packGroups = Array.from(new Set(parts.map((p) => p.packGroup).filter(Boolean))).sort();
   const activeFilterCount = getActiveFilterCount(filters);
+  const showOverRisk = filters.viewMode !== 'understock';
+  const showShortRisk = filters.viewMode !== 'overstock';
 
   const handleClearFilters = () => {
-    setFilters(defaultFilters);
+    setFilters({ ...defaultFilters, viewMode: filters.viewMode });
   };
 
   const selectSx = (active: boolean) => ({
@@ -187,39 +189,43 @@ export default function FilterDrawer({ isOpen }: { isOpen: boolean }) {
           </Select>
         </FormControl>
 
-        <FormControl size="small">
-          <InputLabel>Over risk</InputLabel>
-          <Select
-            value={filters.risk}
-            label="Over risk"
-            onChange={(e) => setFilters({ ...filters, risk: e.target.value })}
-            sx={selectSx(filters.risk !== defaultFilters.risk)}
-          >
-            <MenuItem value="all">All risks</MenuItem>
-            <MenuItem value="Critical">Critical</MenuItem>
-            <MenuItem value="High">High</MenuItem>
-            <MenuItem value="Medium">Medium</MenuItem>
-            <MenuItem value="Low">Low</MenuItem>
-            <MenuItem value="None">None</MenuItem>
-          </Select>
-        </FormControl>
+        {showOverRisk && (
+          <FormControl size="small">
+            <InputLabel>Over risk</InputLabel>
+            <Select
+              value={filters.risk}
+              label="Over risk"
+              onChange={(e) => setFilters({ ...filters, risk: e.target.value })}
+              sx={selectSx(filters.risk !== defaultFilters.risk)}
+            >
+              <MenuItem value="all">All risks</MenuItem>
+              <MenuItem value="Critical">Critical</MenuItem>
+              <MenuItem value="High">High</MenuItem>
+              <MenuItem value="Medium">Medium</MenuItem>
+              <MenuItem value="Low">Low</MenuItem>
+              <MenuItem value="None">None</MenuItem>
+            </Select>
+          </FormControl>
+        )}
 
-        <FormControl size="small">
-          <InputLabel>Short risk</InputLabel>
-          <Select
-            value={filters.shortageRisk}
-            label="Short risk"
-            onChange={(e) => setFilters({ ...filters, shortageRisk: e.target.value })}
-            sx={selectSx(filters.shortageRisk !== defaultFilters.shortageRisk)}
-          >
-            <MenuItem value="all">All risks</MenuItem>
-            <MenuItem value="Critical">Critical</MenuItem>
-            <MenuItem value="High">High</MenuItem>
-            <MenuItem value="Medium">Medium</MenuItem>
-            <MenuItem value="Low">Low</MenuItem>
-            <MenuItem value="None">None</MenuItem>
-          </Select>
-        </FormControl>
+        {showShortRisk && (
+          <FormControl size="small">
+            <InputLabel>Short risk</InputLabel>
+            <Select
+              value={filters.shortageRisk}
+              label="Short risk"
+              onChange={(e) => setFilters({ ...filters, shortageRisk: e.target.value })}
+              sx={selectSx(filters.shortageRisk !== defaultFilters.shortageRisk)}
+            >
+              <MenuItem value="all">All risks</MenuItem>
+              <MenuItem value="Critical">Critical</MenuItem>
+              <MenuItem value="High">High</MenuItem>
+              <MenuItem value="Medium">Medium</MenuItem>
+              <MenuItem value="Low">Low</MenuItem>
+              <MenuItem value="None">None</MenuItem>
+            </Select>
+          </FormControl>
+        )}
 
         <FormControl size="small">
           <InputLabel>Analyst</InputLabel>

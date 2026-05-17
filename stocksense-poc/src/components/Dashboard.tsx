@@ -21,6 +21,7 @@ import QuickInsights from './QuickInsights';
 import InventoryOverviewChart from './InventoryOverviewChart';
 import TopIssues from './TopIssues';
 import { fmtVol } from '../utils/formatters';
+import { defaultFilters } from '../utils/defaultFilters';
 import type { ViewMode } from '../types';
 
 interface TabPanelProps {
@@ -58,8 +59,14 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
   }, [filteredParts, filters.horizon]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    const viewMode = tabViewModes[newValue] ?? 'both';
     setActiveTab(newValue);
-    setFilters({ ...filters, viewMode: tabViewModes[newValue] ?? 'both' });
+    setFilters({
+      ...filters,
+      viewMode,
+      risk: viewMode === 'understock' ? defaultFilters.risk : filters.risk,
+      shortageRisk: viewMode === 'overstock' ? defaultFilters.shortageRisk : filters.shortageRisk,
+    });
     if (onTabChange) {
       onTabChange(tabNames[newValue]);
     }
@@ -80,14 +87,15 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
 
   return (
     <Box sx={{ bgcolor: 'background.default', minHeight: 'calc(100vh - 80px)' }}>
-      <Box sx={{ 
+      <Box sx={{
         borderBottom: 1, 
         borderColor: 'divider', 
         bgcolor: 'background.paper',
         position: 'sticky',
         top: { xs: 64, sm: 70 },
-        zIndex: 100,
+        zIndex: (theme) => theme.zIndex.appBar - 1,
         backdropFilter: 'blur(8px)',
+        boxShadow: filtersOpen ? '0 16px 32px rgba(15, 23, 42, 0.10)' : 'none',
       }}>
         <Container maxWidth="xl" sx={{ px: { xs: 0, sm: 2, md: 3 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Tabs
@@ -117,9 +125,8 @@ const Dashboard: React.FC<{ onTabChange?: (tab: string) => void }> = ({ onTabCha
             <FilterButton isOpen={filtersOpen} onToggle={() => setFiltersOpen(!filtersOpen)} />
           </Box>
         </Container>
+        <FilterDrawer isOpen={filtersOpen} />
       </Box>
-
-      <FilterDrawer isOpen={filtersOpen} />
 
       <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
         <TabPanel value={activeTab} index={0}>

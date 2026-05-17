@@ -62,7 +62,7 @@ const shortageColors: Record<string, string> = {
 const getNumeric = (part: Part, key: string) => Number((part as unknown as Record<string, number>)[key] || 0);
 
 export default function AnalysisTab() {
-  const { parts, filteredParts, filters } = useData();
+  const { filteredParts, filters } = useData();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const horizon = filters.horizon;
@@ -91,7 +91,7 @@ export default function AnalysisTab() {
     const underKey = `under${horizon}`;
     const vendorMap = new Map<string, { overstock: number; shortage: number }>();
 
-    parts.forEach((part) => {
+    filteredParts.forEach((part) => {
       const vendor = part.vname || part.vendor || 'Unassigned';
       const current = vendorMap.get(vendor) || { overstock: 0, shortage: 0 };
       const overstock = getNumeric(part, overKey);
@@ -125,7 +125,7 @@ export default function AnalysisTab() {
         },
       ],
     };
-  }, [horizon, parts]);
+  }, [filteredParts, horizon]);
 
   const analystExposureData = useMemo<ChartData<'bar'>>(() => {
     const overKey = `over${horizon}`;
@@ -134,7 +134,7 @@ export default function AnalysisTab() {
     const shortageValueKey = `shortageVal${horizon}`;
     const analystMap = new Map<string, { overstock: number; shortage: number }>();
 
-    parts.forEach((part) => {
+    filteredParts.forEach((part) => {
       const analyst = part.analyst || 'Unassigned';
       const current = analystMap.get(analyst) || { overstock: 0, shortage: 0 };
       if (getNumeric(part, overKey) > 0) current.overstock += getNumeric(part, valueKey);
@@ -166,11 +166,11 @@ export default function AnalysisTab() {
         },
       ],
     };
-  }, [horizon, parts]);
+  }, [filteredParts, horizon]);
 
   const riskData = useMemo<ChartData<'doughnut'>>(() => {
     const counts = Object.fromEntries(riskLevels.map((risk) => [risk, 0])) as Record<string, number>;
-    parts.forEach((part) => {
+    filteredParts.forEach((part) => {
       counts[part.risk] += 1;
     });
 
@@ -186,11 +186,11 @@ export default function AnalysisTab() {
         },
       ],
     };
-  }, [parts, theme.palette.background.paper]);
+  }, [filteredParts, theme.palette.background.paper]);
 
   const shortageRiskData = useMemo<ChartData<'doughnut'>>(() => {
     const counts = Object.fromEntries(riskLevels.map((risk) => [risk, 0])) as Record<string, number>;
-    parts.forEach((part) => {
+    filteredParts.forEach((part) => {
       counts[part.shortageRisk] += 1;
     });
 
@@ -206,7 +206,7 @@ export default function AnalysisTab() {
         },
       ],
     };
-  }, [parts, theme.palette.background.paper]);
+  }, [filteredParts, theme.palette.background.paper]);
 
   const bubbleData = useMemo<ChartData<'bubble'>>(() => {
     const overKey = `over${horizon}`;
@@ -223,7 +223,7 @@ export default function AnalysisTab() {
           .filter((risk) => risk !== 'None')
           .map((risk) => ({
             label: `OS: ${risk}`,
-            data: parts
+            data: filteredParts
               .filter((part) => part.risk === risk && getNumeric(part, overKey) > 0)
               .map((part) => ({
                 x: getNumeric(part, overVolumeKey),
@@ -241,7 +241,7 @@ export default function AnalysisTab() {
           .filter((risk) => risk !== 'None')
           .map((risk) => ({
             label: `US: ${risk}`,
-            data: parts
+            data: filteredParts
               .filter((part) => part.shortageRisk === risk && getNumeric(part, underKey) > 0)
               .map((part) => ({
                 x: getNumeric(part, shortageVolumeKey),
@@ -257,14 +257,14 @@ export default function AnalysisTab() {
           })),
       ],
     };
-  }, [horizon, parts]);
+  }, [filteredParts, horizon]);
 
   const topVolumeData = useMemo<ChartData<'bar'>>(() => {
     const overKey = `over${horizon}`;
     const underKey = `under${horizon}`;
     const overVolumeKey = `ov${horizon}`;
     const shortageVolumeKey = `uv${horizon}`;
-    const sorted = parts
+    const sorted = filteredParts
       .map((part) => ({
         part,
         overVolume: getNumeric(part, overKey) > 0 ? getNumeric(part, overVolumeKey) : 0,
@@ -295,7 +295,7 @@ export default function AnalysisTab() {
         },
       ],
     };
-  }, [horizon, parts]);
+  }, [filteredParts, horizon]);
 
   const horizonData = useMemo<ChartData<'line'>>(() => {
     return {
@@ -303,7 +303,7 @@ export default function AnalysisTab() {
       datasets: [
         {
           label: 'Overstock units',
-          data: horizons.map((value) => parts.reduce((sum, part) => sum + Math.max(0, getNumeric(part, `over${value}`)), 0)),
+          data: horizons.map((value) => filteredParts.reduce((sum, part) => sum + Math.max(0, getNumeric(part, `over${value}`)), 0)),
           borderColor: '#EF4444',
           backgroundColor: 'rgba(239, 68, 68, 0.12)',
           fill: true,
@@ -311,7 +311,7 @@ export default function AnalysisTab() {
         },
         {
           label: 'Shortage units',
-          data: horizons.map((value) => parts.reduce((sum, part) => sum + Math.max(0, getNumeric(part, `under${value}`)), 0)),
+          data: horizons.map((value) => filteredParts.reduce((sum, part) => sum + Math.max(0, getNumeric(part, `under${value}`)), 0)),
           borderColor: '#0284C7',
           backgroundColor: 'rgba(2, 132, 199, 0.10)',
           fill: true,
@@ -319,7 +319,7 @@ export default function AnalysisTab() {
         },
       ],
     };
-  }, [parts]);
+  }, [filteredParts]);
 
   const commonPlugins = {
     legend: {
@@ -434,7 +434,7 @@ export default function AnalysisTab() {
     },
   };
 
-  if (parts.length === 0) {
+  if (filteredParts.length === 0) {
     return (
       <Paper variant="outlined" sx={{ p: { xs: 4, md: 6 }, textAlign: 'center' }}>
         <AutoGraph sx={{ color: 'primary.main', fontSize: 48, mb: 1 }} />
@@ -465,7 +465,7 @@ export default function AnalysisTab() {
             Analysis Command Center
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-            Prioritize cash, space, and production risk across {parts.length.toLocaleString('en-GB')} uploaded parts.
+            Prioritize cash, space, and production risk across {filteredParts.length.toLocaleString('en-GB')} visible parts.
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
